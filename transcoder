@@ -1,0 +1,441 @@
+#!/bin/bash
+
+# TODO: Write documentation
+
+# Get the running directory
+export RUNNING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Source variables
+source ${RUNNING_DIR}/transcoder.conf
+
+cleanup () {
+  log "console" "Cleaning up."
+  rm -rf ${WORKING_DIR}
+}
+
+global_variables () {
+  export FILE=$(basename "${INPUT}")
+  export NAME=${FILE%.*}
+  export INPUT_DIR=$(dirname "${INPUT}")
+  export DIR_NAME=$(basename "${INPUT_DIR}")
+  export VIDEO_TRACK=$(sqlite3 ${DB} "SELECT video_track FROM inputs WHERE file=\"${INPUT}\";";)
+  export AUDIO_TRACK=$(sqlite3 ${DB} "SELECT audio_track FROM inputs WHERE file=\"${INPUT}\";";)
+  export LANGUAGE=$(sqlite3 ${DB} "SELECT audio_language FROM inputs WHERE file=\"${INPUT}\";";)
+  export SUBTITLE_TRACK=$(sqlite3 ${DB} "SELECT subtitle_track FROM inputs WHERE file=\"${INPUT}\";")
+}
+
+log () {
+  LOCATION=$1
+  LOG_LINE=$2
+
+  if [ "${LOCATION}" == "console" ]; then
+    if [ "${LOG_LINE}" == "" ]; then
+      echo
+    else
+      echo "$(date +%Y-%m-%d-%H:%M:%S) -- ${LOG_LINE}"
+    fi
+  elif [ "${LOCATION}" == "file" ]; then
+    if [ "${LOG_LINE}" == "" ]; then
+      echo >> ${RUNNING_DIR}/logs/${NAME}.log
+    else
+      echo "$(date +%Y-%m-%d-%H:%M:%S) -- ${LOG_LINE}" >> ${RUNNING_DIR}/logs/${NAME}.log
+    fi
+  fi
+}
+
+merge_subtitles () {
+  if [ -f "${WORKING_DIR}/transcoded/${NAME}.mkv" ] && [ -f "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" ]; then
+    # Merge subtitles
+    log "console" "Merging subtitles."
+    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+      log "console"
+    fi
+
+    ffmpeg \
+      -hide_banner \
+      -loglevel ${FFMPEG_LOG_LEVEL} \
+      -i "${WORKING_DIR}/transcoded/${NAME}.mkv" \
+      -i "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" \
+      -map 0:0 -map 0:1 -map 0:2 -map 1:0 \
+      -c:v:0 copy \
+      -c:a:0 copy \
+      -c:a:1 copy \
+      -c:s:0 copy \
+      -disposition:s:0 default \
+      -metadata:s:s:0 language=eng \
+      "${WORKING_DIR}/transcoded/out.mkv" 2>&1
+
+    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+      log "console"
+    fi
+    mv "${WORKING_DIR}/transcoded/out.mkv" "${WORKING_DIR}/transcoded/${NAME}.mkv"
+  else
+    log "console" "Merging subtitles failed."
+  fi
+}
+
+move () {
+  # Move the file if validation passes... if not, fail.
+  if $(validate); then
+    if [ -f "${WORKING_DIR}/transcoded/${NAME}.mkv" ]; then
+      log "console" "Moving transcoded file."
+      rm "${INPUT}"
+      mv "${WORKING_DIR}/transcoded/${NAME}.mkv" "${INPUT}"
+
+      # Add a status file
+      touch "${INPUT_DIR}/.transcoded"
+      echo "${NAME}" >> "${INPUT_DIR}/.transcoded"
+      chown nobody:nogroup "${INPUT_DIR}/.transcoded"
+
+      # Make sure the permissions are correct on everything else
+      chown -R nobody:nogroup "${INPUT_DIR}"
+
+      # Update position of the file in the queue
+      update_position "4"
+
+      notify "complete" "${NAME}"
+    fi
+  else
+    log "console" "Transcoding failed."
+    log "console" "Before duration: ${BEFORE_DURATION}"
+    log "console" "After duration: ${AFTER_DURATION}"
+    log "console" "FFProbe Output (reduced file):"
+    log "console"
+
+    ffprobe \
+      -hide_banner \
+      -i "${WORKING_DIR}/reduced/${NAME}.mkv" 2>&1
+
+    log "console"
+    log "console" "FFProbe Output (normalized file):"
+    log "console"
+
+    ffprobe \
+      -hide_banner \
+      -i "${WORKING_DIR}/normalized/${NAME}.mkv" 2>&1
+
+    log "console"
+    log "console" "FFProbe Output (transcoded file):"
+    log "console"
+
+    ffprobe \
+      -hide_banner \
+      -i "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
+
+    log "console"
+
+    # Update position of file in the queue
+    update_position "99"
+
+    notify "failed" "${NAME}"
+  fi
+}
+
+normalize () {
+  if [ -f "${WORKING_DIR}/reduced/${NAME}.mkv" ]; then
+    # Normalize the audio
+    log "console" "Normalizing audio."
+    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+      log "console"
+    fi
+
+    ffmpeg-normalize \
+      -c:a eac3 \
+      -b:a 640k \
+      -ar 48000 \
+      -v "${WORKING_DIR}/reduced/${NAME}.mkv" \
+      -o "${WORKING_DIR}/normalized/${NAME}.mkv"
+
+    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+      log "console"
+    fi
+
+    # Update the position of the file in the queue
+    update_position "2"
+  else
+    log "console" "Normalizing audio failed."
+  fi
+}
+
+notify () {
+  ACTION=$1
+  ITEM=$2
+  EMOJI=":clapper:"
+  CHANNEL="#notifications"
+  USERNAME="Transcoder"
+
+  log "console" "Notifying Slack."
+
+  if [ "${ACTION}" == "start" ]; then
+    COLOR="good"
+    PRETEXT="Transcoding started for:"
+  elif [ "${ACTION}" == "complete" ]; then
+    COLOR="good"
+    PRETEXT="Transcoding complete for:"
+  elif [ "${ACTION}" == "failed" ]; then
+    COLOR="danger"
+    PRETEXT="Transcoding failed for:"
+  elif [ "${ACTION}" == "queued" ]; then
+    COLOR="warning"
+    PRETEXT="Queued the following for transcoding:"
+  fi
+
+  PAYLOAD="payload={\"channel\": \"${CHANNEL}\", \"username\": \"${USERNAME}\", \"icon_emoji\": \"${EMOJI}\", \"attachments\": [{\"color\": \"${COLOR}\", \"pretext\": \"${PRETEXT}\", \"fields\": [{\"title\": \"${ITEM}\"}]}]}"
+
+  curl -s -X POST --data-urlencode "${PAYLOAD}" "${SLACK_WEBHOOK_URL}" >> /dev/null
+}
+
+queue () {
+  log "console" "Building list of files that need transcoding."
+
+  # Build a list of the files that need transcoding
+  find "${MEDIA_DIR}" -name "*.mkv" -o -name "*.m4v" -o -name "*.mp4" > ${WORKING_DIR}/transcoding_list
+
+  # Only split on newlines
+  IFS=$'\n'
+
+  # Cycle through the list and record the user input
+  for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
+
+    # Get the directory of the input file
+    INPUT_DIR=$(dirname "${INPUT}")
+
+    # Check to see if the input has already been queued
+    COUNT=$(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE file=\"${INPUT}\";")
+
+    # Skip files that have already been transcoded or queued
+    if [ ! -f "${INPUT_DIR}/.transcoded" ] && [ ${COUNT} -lt 1 ]; then
+
+      # Set the input file as a global variable, and generate the rest
+      export INPUT="${INPUT}"
+      global_variables
+
+      log "console" "Grabbing file info for \"${NAME}\""
+
+      if [ -f "${INPUT}" ]; then
+        log "console"
+        ffprobe -i "${INPUT}" 2>&1 | egrep "Stream"
+        log "console"
+      fi
+
+      echo -n "Enter the video track (Default: 0): "
+      read VIDEO_TRACK
+
+      if [ "${VIDEO_TRACK}" = "" ]; then
+        VIDEO_TRACK="0"
+      fi
+
+      echo -n "Enter the audio track (Default: 1): "
+      read AUDIO_TRACK
+
+      if [ "${AUDIO_TRACK}" = "" ]; then
+        AUDIO_TRACK="1"
+      fi
+
+      echo -n "Enter the audio language (Default: eng): "
+      read LANGUAGE
+
+      if [ "${LANGUAGE}" = "" ]; then
+        LANGUAGE="eng"
+      fi
+
+      if [ "${LANGUAGE}" != "eng" ]; then
+        echo -n "Enter the subtitle track (Default: 2): "
+        read SUBTITLE_TRACK
+      fi
+
+      if [ "${SUBTITLE_TRACK}" = "" ]; then
+        SUBTITLE_TRACK="2"
+      fi
+
+      log "console"
+
+      # Add the file to the Db
+      sqlite3 ${DB} "INSERT INTO inputs (file, video_track, audio_track, subtitle_track, audio_language) VALUES (\"${INPUT}\", ${VIDEO_TRACK}, ${AUDIO_TRACK}, ${SUBTITLE_TRACK}, '${LANGUAGE}');"
+      log "console" "Adding ${NAME} with the following variables..."
+      log "console" "Video Track: ${VIDEO_TRACK}"
+      log "console" "Audio Track: ${AUDIO_TRACK}"
+      log "console" "Audio Language: ${LANGUAGE}"
+      if [ "${LANGUAGE}" != "eng" ]; then
+        log "console" "Subtitle Track: ${SUBTITLE_TRACK}"
+      fi
+      notify "queued" "${NAME}"
+    fi
+  done
+}
+
+reduce () {
+  if [ -f "${INPUT}" ]; then
+    # Reduce the file to a single video/audio track
+    log "console" "Reducing to single video/audio track."
+    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+      log "console"
+    fi
+
+    ffmpeg \
+      -hide_banner \
+      -loglevel ${FFMPEG_LOG_LEVEL} \
+      -i "${INPUT}" \
+      -map_metadata -1 \
+      -map_chapters -1 \
+      -map 0:${VIDEO_TRACK} -map 0:${AUDIO_TRACK} \
+      -c:v copy \
+      -c:a copy \
+      "${WORKING_DIR}/reduced/${NAME}.mkv" 2>&1
+
+    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+      log "console"
+    fi
+
+    # Update the position of the file in the queue
+    update_position "1"
+  else
+    log "console" "Reduction of input file failed."
+  fi
+}
+
+rip_subtitles () {
+  if [ -f "${INPUT}" ]; then
+    # Rip the subtitles to a text SRT file
+    log "console" "Ripping subtitles."
+    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+      log "console"
+    fi
+
+    ffmpeg \
+      -hide_banner \
+      -loglevel ${FFMPEG_LOG_LEVEL} \
+      -txt_format text \
+      -i "${INPUT}" \
+      -map 0:${SUBTITLE_TRACK} \
+      "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" 2>&1
+
+    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+      log "console"
+    fi
+  else
+    log "console" "Ripping subtitles failed."
+  fi
+}
+
+transcode () {
+  if [ -f "${WORKING_DIR}/normalized/${NAME}.mkv" ]; then
+    # Transcode the file
+    log "console" "Transcoding."
+    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+      log "console"
+    fi
+
+    ffmpeg \
+      -hide_banner \
+      -loglevel ${FFMPEG_LOG_LEVEL} \
+      -i "${WORKING_DIR}/normalized/${NAME}.mkv" \
+      -map_metadata -1 \
+      -map_chapters -1 \
+      -map 0:0 -map 0:1 -map 0:1 \
+      -vf "${FFMPEG_VIDEO_FORMAT}" \
+      -vaapi_device /dev/dri/renderD128 \
+      -c:v ${FFMPEG_CODEC} \
+      -b:v 10M \
+      -c:a:0 aac \
+      -b:a:0 180k \
+      -ac:a:0 2 \
+      -ar:a:0 48000 \
+      -metadata:s:a:0 language=${LANGUAGE} \
+      -c:a:1 copy \
+      -metadata:s:a:1 language=${LANGUAGE} \
+      "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
+
+    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+      log "console"
+    fi
+
+    # Update the position of the file in the queue
+    update_position "3"
+  else
+    log "console" "Transcoding failed."
+  fi
+}
+
+update_position () {
+  POSITION=$1
+  sqlite3 ${DB} "UPDATE inputs SET position=\"${POSITION}\" WHERE file=\"${INPUT}\";"
+}
+
+validate () {
+  # Record duration of file before transcoding
+  export BEFORE_DURATION=$(ffprobe -i "${INPUT}" 2>&1 | egrep "Duration" | awk '{print $2}' | awk -F'.' '{print $1}')
+  sqlite3 ${DB} "UPDATE inputs SET before_duration=\"${BEFORE_DURATION}\" WHERE file=\"${INPUT}\";"
+
+  # Record the duration of the file after transcoding
+  if [ -f "${WORKING_DIR}/transcoded/${NAME}.mkv" ]; then
+    export AFTER_DURATION=$(ffprobe -i "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1 | egrep "Duration" | awk '{print $2}' | awk -F'.' '{print $1}')
+  else
+    export AFTER_DURATION="00:00:00"
+  fi
+  sqlite3 ${DB} "UPDATE inputs SET after_duration=\"${AFTER_DURATION}\" WHERE file=\"${INPUT}\";"
+
+  BEFORE_IN_SECONDS="$(echo '${BEFORE_DURATION}' | awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }')"
+  AFTER_IN_SECONDS="$(echo '${AFTER_DURATION}' | awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }')"
+
+  # Allowable spread between before and after duration of transcoded file
+  DELTA="2"
+
+  UPPER_BOUNDRY=$(expr ${BEFORE_IN_SECONDS} + ${DELTA})
+  LOWER_BOUNDRY=$(expr ${BEFORE_IN_SECONDS} - ${DELTA})
+
+  # Return true if validation passes, false if it does not
+  if [ ${AFTER_IN_SECONDS} -lt ${UPPER_BOUNDRY} ] && [ ${AFTER_IN_SECONDS} -gt ${LOWER_BOUNDRY} ]; then
+    true
+  else
+    false
+  fi
+}
+
+# If 'OPERATION' env variable not set, process the queue
+if [ -z "${OPERATION+x}" ]; then
+
+  # Run in a loop as long as there is work to do...
+  while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt 0 ] && [ ! -f ${RUNNING_DIR}/transcoder.stop ]; do
+    # Only split on newlines
+    IFS=$'\n'
+
+    # Process the queue
+    for INPUT in $(sqlite3 ${DB} "SELECT file FROM inputs WHERE position='0' LIMIT 1;"); do
+
+      # Set the input file as a global variable, and generate the rest
+      export INPUT="${INPUT}"
+      global_variables
+
+      # Define working directories
+      export WORKING_DIR=$(mktemp -d -p ${TEMP_DIR} -t transcoder.XXXX)
+      mkdir ${WORKING_DIR}/reduced
+      mkdir ${WORKING_DIR}/normalized
+      mkdir ${WORKING_DIR}/transcoded
+
+      # Do all the things
+      notify "start" "${NAME}"
+
+      log "console" "Beginning transcode for: ${NAME}"
+
+      reduce
+      normalize
+      transcode
+
+      # If the audio track language isn't English, then rip the subtitles to an SRT file
+      if [ "${LANGUAGE}" != "eng" ]; then
+        rip_subtitles
+        merge_subtitles
+      fi
+
+      move
+      cleanup
+
+      log "console" "Ending transcode for: ${NAME}"
+    done
+  done
+  log "console" "Stopping transcoder."
+else
+  # Run the function specified in the environment variable
+  ${OPERATION}
+fi
