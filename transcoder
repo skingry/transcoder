@@ -196,20 +196,21 @@ queue () {
 
   # Cycle through the list and record the user input
   for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
-
-    # Get the directory of the input file
-    INPUT_DIR=$(dirname "${INPUT}")
+    # Set the input file as a global variable, and generate the rest
+    export INPUT="${INPUT}"
+    global_variables
 
     # Check to see if the input has already been queued
     COUNT=$(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE file=\"${INPUT}\";")
 
+    if [ -f "${INPUT_DIR}/.transcoded" ]; then
+      STATUS=$(cat "${INPUT_DIR}/.transcoded" | grep "${NAME}" | wc -l)
+    else
+      STATUS="0"
+    fi
+
     # Skip files that have already been transcoded or queued
-    if [ ! -f "${INPUT_DIR}/.transcoded" ] && [ ${COUNT} -lt 1 ]; then
-
-      # Set the input file as a global variable, and generate the rest
-      export INPUT="${INPUT}"
-      global_variables
-
+    if [ ${STATUS} -lt 1 ] && [ ${COUNT} -lt 1 ]; then
       log "console" "Grabbing file info for \"${NAME}\""
 
       if [ -f "${INPUT}" ]; then
@@ -336,7 +337,7 @@ transcode () {
       -vf "${FFMPEG_VIDEO_FORMAT}" \
       -vaapi_device /dev/dri/renderD128 \
       -c:v ${FFMPEG_CODEC} \
-      -b:v 10M \
+      -b:v ${FFMPEG_CODEC_BITRATE} \
       -c:a:0 aac \
       -b:a:0 180k \
       -ac:a:0 2 \
