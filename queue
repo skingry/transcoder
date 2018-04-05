@@ -1,0 +1,100 @@
+#!/bin/bash
+
+MEDIA_DIR=$1
+
+if [ "${MEDIA_DIR}" == "" ]; then
+  echo "USAGE: $0 \"/path/to/media/to/transcode\""
+  exit 1
+fi
+
+if [ ! -d "${MEDIA_DIR}" ]; then
+  echo "Media directory not an actual directory!"
+  exit 1
+fi
+
+# Get the running directory
+export RUNNING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Source common_functions
+source ${RUNNING_DIR}/common_functions
+
+log "console" "Building list of files that need transcoding."
+
+# Build a list of the files that need transcoding
+find "${MEDIA_DIR}" -name "*.mkv" -o -name "*.m4v" -o -name "*.mp4" > ${WORKING_DIR}/transcoding_list
+
+# Only split on newlines
+IFS=$'\n'
+
+# Cycle through the list and record the user input
+for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
+  # Set the input file as a global variable, and generate the rest
+  export INPUT="${INPUT}"
+  global_variables
+
+  # Check to see if the input has already been queued
+  COUNT=$(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE file=\"${INPUT}\";")
+
+  if [ -f "${INPUT_DIR}/.transcoded" ]; then
+    STATUS=$(cat "${INPUT_DIR}/.transcoded" | grep "${NAME}" | wc -l)
+  else
+    STATUS="0"
+  fi
+
+  # Skip files that have already been transcoded or queued
+  if [ ${STATUS} -lt 1 ] && [ ${COUNT} -lt 1 ]; then
+    log "console" "Grabbing file info for \"${NAME}\""
+
+    if [ -f "${INPUT}" ]; then
+      log "console"
+      ffprobe -i "${INPUT}" 2>&1 | egrep "Stream"
+      log "console"
+    fi
+
+    echo -n "Enter the video track (Default: 0): "
+    read VIDEO_TRACK
+
+    if [ "${VIDEO_TRACK}" = "" ]; then
+      VIDEO_TRACK="0"
+    fi
+
+    echo -n "Enter the audio track (Default: 1): "
+    read AUDIO_TRACK
+
+    if [ "${AUDIO_TRACK}" = "" ]; then
+      AUDIO_TRACK="1"
+    fi
+
+    echo -n "Enter the audio language (Default: eng): "
+    read LANGUAGE
+
+    if [ "${LANGUAGE}" = "" ]; then
+      LANGUAGE="eng"
+    fi
+
+    if [ "${LANGUAGE}" != "eng" ]; then
+      echo -n "Enter the subtitle track (Default: 2): "
+      read SUBTITLE_TRACK
+    fi
+
+    if [ "${SUBTITLE_TRACK}" = "" ]; then
+      SUBTITLE_TRACK="2"
+    fi
+
+    log "console"
+
+    # Add the file to the Db
+    sqlite3 ${DB} "INSERT INTO inputs (file, video_track, audio_track, subtitle_track, audio_language) VALUES (\"${INPUT}\", ${VIDEO_TRACK}, ${AUDIO_TRACK}, ${SUBTITLE_TRACK}, '${LANGUAGE}');"
+    log "console" "Adding ${NAME} with the following variables..."
+    log "console" "Video Track: ${VIDEO_TRACK}"
+    log "console" "Audio Track: ${AUDIO_TRACK}"
+    log "console" "Audio Language: ${LANGUAGE}"
+    if [ "${LANGUAGE}" != "eng" ]; then
+      log "console" "Subtitle Track: ${SUBTITLE_TRACK}"
+    fi
+    notify "queued" "${NAME}"
+  else
+    echo "  -- '${NAME}' already transcoded. Skipping."
+    sleep 1
+  fi
+done

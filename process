@@ -1,28 +1,10 @@
 #!/bin/bash
 
-# TODO: Write documentation
-
 # Get the running directory
 export RUNNING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Source variables
-source ${RUNNING_DIR}/transcoder.conf
-
-cleanup () {
-  log "console" "Cleaning up."
-  rm -rf ${WORKING_DIR}
-}
-
-global_variables () {
-  export FILE=$(basename "${INPUT}")
-  export NAME=${FILE%.*}
-  export INPUT_DIR=$(dirname "${INPUT}")
-  export DIR_NAME=$(basename "${INPUT_DIR}")
-  export VIDEO_TRACK=$(sqlite3 ${DB} "SELECT video_track FROM inputs WHERE file=\"${INPUT}\";";)
-  export AUDIO_TRACK=$(sqlite3 ${DB} "SELECT audio_track FROM inputs WHERE file=\"${INPUT}\";";)
-  export LANGUAGE=$(sqlite3 ${DB} "SELECT audio_language FROM inputs WHERE file=\"${INPUT}\";";)
-  export SUBTITLE_TRACK=$(sqlite3 ${DB} "SELECT subtitle_track FROM inputs WHERE file=\"${INPUT}\";")
-}
+# Source common functions
+source ${RUNNING_DIR}/common_functions
 
 log () {
   LOCATION=$1
@@ -407,12 +389,6 @@ if [ -z "${OPERATION+x}" ]; then
       # Set the input file as a global variable, and generate the rest
       export INPUT="${INPUT}"
       global_variables
-
-      # Define working directories
-      export WORKING_DIR=$(mktemp -d -p ${TEMP_DIR} -t transcoder.XXXX)
-      mkdir ${WORKING_DIR}/reduced
-      mkdir ${WORKING_DIR}/normalized
-      mkdir ${WORKING_DIR}/transcoded
 
       # Do all the things
       notify "start" "${NAME}"

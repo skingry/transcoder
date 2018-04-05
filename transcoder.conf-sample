@@ -1,16 +1,11 @@
-# Db location
-export DB="${RUNNING_DIR}/transcoder.db"
-
 # Define Slack variables
+export SLACK_ENABLED="false"
 export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/REDACTED/REDACTED/REDACTED"
-
-# Define temporary dir
-export TEMP_DIR="/tmp"
-
-# Define the base media directory
-export MEDIA_DIR="/data/shares/Media/Movies"
+export SLACK_CHANNEL="#notifications"
+export SLACK_USERNAME="Transcoder"
 
 # Define the ffmpeg variables
 export FFMPEG_LOG_LEVEL="fatal"
 export FFMPEG_VIDEO_FORMAT="scale=1920:-1,format=nv12,hwupload"
 export FFMPEG_CODEC="h264_vaapi"
+export FFMPEG_CODEC_BITRATE="20M"
