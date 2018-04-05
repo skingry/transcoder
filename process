@@ -238,7 +238,7 @@ validate () {
   if [ -f "${FILE}" ]; then
     export AFTER_DURATION=$(ffprobe -v error -select_streams v:0 -show_format "${FILE}" | grep "duration" | awk -F'=' '{print $2}' | awk -F'.' '{print $1}')
   else
-    export AFTER_DURATION="00:00:00"
+    export AFTER_DURATION="0"
   fi
   sqlite3 ${DB} "UPDATE inputs SET after_duration=\"${AFTER_DURATION}\" WHERE file=\"${INPUT}\";"
 
