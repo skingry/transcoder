@@ -6,6 +6,6 @@ export SLACK_USERNAME="Transcoder"
 
 # Define the ffmpeg variables
 export FFMPEG_LOG_LEVEL="fatal"
-export FFMPEG_VIDEO_FORMAT="scale=1920:-1,format=nv12,hwupload"
-export FFMPEG_CODEC="h264_vaapi"
-export FFMPEG_CODEC_BITRATE="20M"
+export FFMPEG_VIDEO_FORMAT="scale=1920:-1"
+export FFMPEG_CODEC="h264"
+export FFMPEG_CODEC_BITRATE="10M"
