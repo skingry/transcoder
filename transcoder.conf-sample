@@ -5,7 +5,6 @@ export SLACK_CHANNEL="#notifications"
 export SLACK_USERNAME="Transcoder"
 
 # Define the ffmpeg variables
+export FFMPEG_HARDWARE_ACCELERATION="false"
 export FFMPEG_LOG_LEVEL="fatal"
-export FFMPEG_VIDEO_FORMAT="scale=1920:-1"
-export FFMPEG_CODEC="h264"
-export FFMPEG_CODEC_BITRATE="10M"
+export FFMPEG_CODEC_BITRATE="10777294"
