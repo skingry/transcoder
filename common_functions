@@ -14,12 +14,6 @@ if [ ! -f ${DB} ]; then
   sqlite3 ${DB} "CREATE TABLE inputs(file text NOT NULL, video_track integer DEFAULT 0, audio_track integer DEFAULT 1, audio_language varchar(3) DEFAULT eng, position smallint DEFAULT 0, subtitle_track int DEFAULT 2, before_duration text DEFAULT NULL, after_duration text DEFAULT NULL);"
 fi
 
-# Define working directories
-export WORKING_DIR=$(mktemp -d -t transcoder.XXXX)
-mkdir ${WORKING_DIR}/reduced
-mkdir ${WORKING_DIR}/normalized
-mkdir ${WORKING_DIR}/transcoded
-
 # Generate global variables
 global_variables () {
   export FILE=$(basename "${INPUT}")
@@ -80,4 +74,12 @@ notify () {
     curl -s -X POST --data-urlencode "${PAYLOAD}" "${SLACK_WEBHOOK_URL}" >> /dev/null
   fi
 }
+
+# Define working directories
+log "console" "Creating working directory."
+export WORKING_DIR=$(mktemp -d -t transcoder.XXXX)
+mkdir ${WORKING_DIR}/reduced
+mkdir ${WORKING_DIR}/normalized
+mkdir ${WORKING_DIR}/transcoded
+
 
