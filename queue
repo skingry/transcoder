@@ -93,9 +93,6 @@ for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
       log "console" "Subtitle Track: ${SUBTITLE_TRACK}"
     fi
     notify "queued" "${NAME}"
-  else
-    echo "  -- '${NAME}' already transcoded. Skipping."
-    sleep 1
   fi
 
   cleanup

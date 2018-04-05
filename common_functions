@@ -16,7 +16,6 @@ fi
 
 # Cleanup
 cleanup () {
-  log "console" "Cleaning up."
   rm -rf ${WORKING_DIR}
 }
 
