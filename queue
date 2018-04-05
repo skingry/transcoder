@@ -97,4 +97,6 @@ for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
     echo "  -- '${NAME}' already transcoded. Skipping."
     sleep 1
   fi
+
+  cleanup
 done
