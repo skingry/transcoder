@@ -6,25 +6,6 @@ export RUNNING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Source common functions
 source ${RUNNING_DIR}/common_functions
 
-log () {
-  LOCATION=$1
-  LOG_LINE=$2
-
-  if [ "${LOCATION}" == "console" ]; then
-    if [ "${LOG_LINE}" == "" ]; then
-      echo
-    else
-      echo "$(date +%Y-%m-%d-%H:%M:%S) -- ${LOG_LINE}"
-    fi
-  elif [ "${LOCATION}" == "file" ]; then
-    if [ "${LOG_LINE}" == "" ]; then
-      echo >> ${RUNNING_DIR}/logs/${NAME}.log
-    else
-      echo "$(date +%Y-%m-%d-%H:%M:%S) -- ${LOG_LINE}" >> ${RUNNING_DIR}/logs/${NAME}.log
-    fi
-  fi
-}
-
 merge_subtitles () {
   if $(validate "${WORKING_DIR}/transcoded/${NAME}.mkv") && [ -f "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" ]; then
     # Merge subtitles
@@ -139,34 +120,6 @@ normalize () {
   fi
 }
 
-notify () {
-  ACTION=$1
-  ITEM=$2
-  EMOJI=":clapper:"
-  CHANNEL="#notifications"
-  USERNAME="Transcoder"
-
-  log "console" "Notifying Slack."
-
-  if [ "${ACTION}" == "start" ]; then
-    COLOR="good"
-    PRETEXT="Transcoding started for:"
-  elif [ "${ACTION}" == "complete" ]; then
-    COLOR="good"
-    PRETEXT="Transcoding complete for:"
-  elif [ "${ACTION}" == "failed" ]; then
-    COLOR="danger"
-    PRETEXT="Transcoding failed for:"
-  elif [ "${ACTION}" == "queued" ]; then
-    COLOR="warning"
-    PRETEXT="Queued the following for transcoding:"
-  fi
-
-  PAYLOAD="payload={\"channel\": \"${CHANNEL}\", \"username\": \"${USERNAME}\", \"icon_emoji\": \"${EMOJI}\", \"attachments\": [{\"color\": \"${COLOR}\", \"pretext\": \"${PRETEXT}\", \"fields\": [{\"title\": \"${ITEM}\"}]}]}"
-
-  curl -s -X POST --data-urlencode "${PAYLOAD}" "${SLACK_WEBHOOK_URL}" >> /dev/null
-}
-
 reduce () {
   if [ -f "${INPUT}" ]; then
     # Reduce the file to a single video/audio track
@@ -229,7 +182,7 @@ transcode () {
       log "console"
     fi
 
-    SOURCE_BITRATE=$(ffprobe -v error -select_streams v:0 -show_format \"${INPUT}\" | grep "bit_rate" | awk -F'=' '{print $2}')
+    SOURCE_BITRATE=$(ffprobe -v error -select_streams v:0 -show_format "${INPUT}" | grep "bit_rate" | awk -F'=' '{print $2}')
 
     if [ "${SOURCE_BITRATE}" -gt "${FFMPEG_CODEC_BITRATE}" ]; then
       if ["${FFMPEG_HARDWARE_ACCELERATION}" == "true" ]; then
