@@ -230,11 +230,7 @@ update_position () {
 validate () {
   FILE=$1
 
-  # Record duration of file before transcoding
-  export BEFORE_DURATION=$(ffprobe -v error -select_streams v:0 -show_format "${INPUT}" | grep "duration" | awk -F'=' '{print $2}' | awk -F'.' '{print $1}')
-  sqlite3 ${DB} "UPDATE inputs SET before_duration=\"${BEFORE_DURATION}\" WHERE file=\"${INPUT}\";"
-
-  # Record the duration of the file after transcoding
+  # Record the duration of the processed file
   if [ -f "${FILE}" ]; then
     export AFTER_DURATION=$(ffprobe -v error -select_streams v:0 -show_format "${FILE}" | grep "duration" | awk -F'=' '{print $2}' | awk -F'.' '{print $1}')
   else
@@ -272,6 +268,10 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
     notify "start" "${NAME}"
 
     log "console" "Beginning transcode for: '${NAME}'"
+
+    # Record duration of file before transcoding
+    export BEFORE_DURATION=$(ffprobe -v error -select_streams v:0 -show_format "${INPUT}" | grep "duration" | awk -F'=' '{print $2}' | awk -F'.' '{print $1}')
+    sqlite3 ${DB} "UPDATE inputs SET before_duration=\"${BEFORE_DURATION}\" WHERE file=\"${INPUT}\";"
 
     reduce
     normalize
