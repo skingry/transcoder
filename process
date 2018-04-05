@@ -26,7 +26,7 @@ log () {
 }
 
 merge_subtitles () {
-  if [ -f "${WORKING_DIR}/transcoded/${NAME}.mkv" ] && [ -f "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" ]; then
+  if $(validate "${WORKING_DIR}/transcoded/${NAME}.mkv") && [ -f "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" ]; then
     # Merge subtitles
     log "console" "Merging subtitles."
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -58,7 +58,7 @@ merge_subtitles () {
 
 move () {
   # Move the file if validation passes... if not, fail.
-  if $(validate); then
+  if $(validate "${WORKING_DIR}/transcoded/${NAME}.mkv"); then
     if [ -f "${WORKING_DIR}/transcoded/${NAME}.mkv" ]; then
       log "console" "Moving transcoded file."
       rm "${INPUT}"
@@ -114,7 +114,7 @@ move () {
 }
 
 normalize () {
-  if [ -f "${WORKING_DIR}/reduced/${NAME}.mkv" ]; then
+  if $(validate "${WORKING_DIR}/reduced/${NAME}.mkv"); then
     # Normalize the audio
     log "console" "Normalizing audio."
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -222,7 +222,7 @@ rip_subtitles () {
 }
 
 transcode () {
-  if [ -f "${WORKING_DIR}/normalized/${NAME}.mkv" ]; then
+  if $(validate "${WORKING_DIR}/normalized/${NAME}.mkv"); then
     # Transcode the file
     log "console" "Transcoding."
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -275,29 +275,28 @@ update_position () {
 }
 
 validate () {
+  FILE=$1
+
   # Record duration of file before transcoding
-  export BEFORE_DURATION=$(ffprobe -i "${INPUT}" 2>&1 | egrep "Duration" | awk '{print $2}' | awk -F'.' '{print $1}')
+  export BEFORE DURATION=$(ffprobe -v error -select_streams v:0 -show_format "${INPUT}" | grep "duration" | awk -F'=' '{print $2}' | awk -F'.' '{print $1}')
   sqlite3 ${DB} "UPDATE inputs SET before_duration=\"${BEFORE_DURATION}\" WHERE file=\"${INPUT}\";"
 
   # Record the duration of the file after transcoding
-  if [ -f "${WORKING_DIR}/transcoded/${NAME}.mkv" ]; then
-    export AFTER_DURATION=$(ffprobe -i "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1 | egrep "Duration" | awk '{print $2}' | awk -F'.' '{print $1}')
+  if [ -f "${FILE}" ]; then
+    export BEFORE DURATION=$(ffprobe -v error -select_streams v:0 -show_format "${FILE}" | grep "duration" | awk -F'=' '{print $2}' | awk -F'.' '{print $1}')
   else
     export AFTER_DURATION="00:00:00"
   fi
   sqlite3 ${DB} "UPDATE inputs SET after_duration=\"${AFTER_DURATION}\" WHERE file=\"${INPUT}\";"
 
-  BEFORE_IN_SECONDS="$(echo '${BEFORE_DURATION}' | awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }')"
-  AFTER_IN_SECONDS="$(echo '${AFTER_DURATION}' | awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }')"
-
   # Allowable spread between before and after duration of transcoded file
   DELTA="2"
 
-  UPPER_BOUNDRY=$(expr ${BEFORE_IN_SECONDS} + ${DELTA})
-  LOWER_BOUNDRY=$(expr ${BEFORE_IN_SECONDS} - ${DELTA})
+  UPPER_BOUNDRY=$(expr ${BEFORE_DURATION} + ${DELTA})
+  LOWER_BOUNDRY=$(expr ${BEFORE_DURATION} - ${DELTA})
 
   # Return true if validation passes, false if it does not
-  if [ ${AFTER_IN_SECONDS} -lt ${UPPER_BOUNDRY} ] && [ ${AFTER_IN_SECONDS} -gt ${LOWER_BOUNDRY} ]; then
+  if [ ${AFTER_DURATION} -lt ${UPPER_BOUNDRY} ] && [ ${AFTER_DURATION} -gt ${LOWER_BOUNDRY} ]; then
     true
   else
     false
