@@ -89,8 +89,7 @@ move () {
 
     # Update position of file in the queue
     update_position "99"
-
-    notify "failed" "${NAME}"
+    log "console" "Moving file failed."
   fi
 }
 
@@ -116,6 +115,8 @@ normalize () {
     # Update the position of the file in the queue
     update_position "2"
   else
+    # Update position of file in the queue
+    update_position "99"
     log "console" "Normalizing audio failed."
   fi
 }
@@ -146,6 +147,8 @@ reduce () {
     # Update the position of the file in the queue
     update_position "1"
   else
+    # Update position of file in the queue
+    update_position "99"
     log "console" "Reduction of input file failed."
   fi
 }
@@ -170,6 +173,8 @@ rip_subtitles () {
       log "console"
     fi
   else
+    # Update position of file in the queue
+    update_position "99"
     log "console" "Ripping subtitles failed."
   fi
 }
@@ -218,6 +223,8 @@ transcode () {
     # Update the position of the file in the queue
     update_position "3"
   else
+    # Update position of file in the queue
+    update_position "99"
     log "console" "Transcoding failed."
   fi
 }
@@ -273,20 +280,39 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
     export BEFORE_DURATION=$(ffprobe -v error -select_streams v:0 -show_format "${INPUT}" | grep "duration" | awk -F'=' '{print $2}' | awk -F'.' '{print $1}')
     sqlite3 ${DB} "UPDATE inputs SET before_duration=\"${BEFORE_DURATION}\" WHERE file=\"${INPUT}\";"
 
+    # Reduce the file to a single video and audio track
     reduce
-    normalize
-    transcode
+
+    if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
+      normalize
+    fi
+
+    if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
+      transcode
+    fi
 
     # If the audio track language isn't English, then rip the subtitles to an SRT file
     if [ "${LANGUAGE}" != "eng" ]; then
-      rip_subtitles
-      merge_subtitles
+      if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
+        rip_subtitles
+      fi
+      if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
+        merge_subtitles
+      fi
     fi
 
-    move
+    if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
+      move
+    fi
+
     cleanup
 
-    log "console" "Ending transcode for: '${NAME}'"
+    if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
+      log "console" "Ending transcode for: '${NAME}'"
+    else
+      log "console" "Transcoding failed for: '${NAME}'"
+      notify "failed" "${NAME}"
+    fi
   done
 done
 log "console" "Stopping transcoder."
