@@ -190,7 +190,7 @@ transcode () {
     SOURCE_BITRATE=$(ffprobe -v error -select_streams v:0 -show_format "${INPUT}" | grep "bit_rate" | awk -F'=' '{print $2}')
 
     if [ "${SOURCE_BITRATE}" -gt "${FFMPEG_CODEC_BITRATE}" ]; then
-      if ["${FFMPEG_HARDWARE_ACCELERATION}" == "true" ]; then
+      if [ "${FFMPEG_HARDWARE_ACCELERATION}" == "true" ]; then
         VIDEO_OPTIONS="-vf 'scale=1920:-1,format=nv12,hwupload' -vaapi_device /dev/dri/renderD128 -c:v h264_vaapi -b:v ${FFMPEG_CODEC_BITRATE}"
       else
         VIDEO_OPTIONS="-vf 'scale=1920:-1' -c:v h264 -b:v ${FFMPEG_CODEC_BITRATE}"
