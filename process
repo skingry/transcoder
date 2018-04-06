@@ -62,30 +62,39 @@ move () {
     log "console" "Transcoding failed."
     log "console" "Before duration: ${BEFORE_DURATION}"
     log "console" "After duration: ${AFTER_DURATION}"
-    log "console" "FFProbe Output (reduced file):"
-    log "console"
 
-    ffprobe \
-      -hide_banner \
-      -i "${WORKING_DIR}/reduced/${NAME}.mkv" 2>&1
+    if [ -f "${WORKING_DIR}/reduced/${NAME}.mkv" ]; then
+      log "console" "FFProbe Output (reduced file):"
+      log "console"
 
-    log "console"
-    log "console" "FFProbe Output (normalized file):"
-    log "console"
+      ffprobe \
+        -hide_banner \
+        -i "${WORKING_DIR}/reduced/${NAME}.mkv" 2>&1
 
-    ffprobe \
-      -hide_banner \
-      -i "${WORKING_DIR}/normalized/${NAME}.mkv" 2>&1
+      log "console"
+    fi
 
-    log "console"
-    log "console" "FFProbe Output (transcoded file):"
-    log "console"
+    if [ -f "${WORKING_DIR}/normalized/${NAME}.mkv" ]; then
+      log "console" "FFProbe Output (normalized file):"
+      log "console"
 
-    ffprobe \
-      -hide_banner \
-      -i "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
+      ffprobe \
+        -hide_banner \
+        -i "${WORKING_DIR}/normalized/${NAME}.mkv" 2>&1
 
-    log "console"
+      log "console"
+    fi
+
+    if [ -f "${WORKING_DIR}/transcoded/${NAME}.mkv" ]; then
+      log "console" "FFProbe Output (transcoded file):"
+      log "console"
+
+      ffprobe \
+        -hide_banner \
+        -i "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
+
+      log "console"
+    fi
 
     # Update position of file in the queue
     update_position "99"
@@ -191,30 +200,63 @@ transcode () {
 
     if [ "${SOURCE_BITRATE}" -gt "${FFMPEG_CODEC_BITRATE}" ]; then
       if [ "${FFMPEG_HARDWARE_ACCELERATION}" == "true" ]; then
-        VIDEO_OPTIONS="-vf \"scale=1920\:-1,format=nv12,hwupload\" -vaapi_device /dev/dri/renderD128 -c\:v h264_vaapi -b\:v ${FFMPEG_CODEC_BITRATE}"
+        ffmpeg \
+          -hide_banner \
+          -loglevel ${FFMPEG_LOG_LEVEL} \
+          -i "${WORKING_DIR}/normalized/${NAME}.mkv" \
+          -map_metadata -1 \
+          -map_chapters -1 \
+          -map 0:0 -map 0:1 -map 0:1 \
+          -vaapi_device /dev/dri/renderD128 \
+          -vf 'scale=1920:-1,format=nv12,hwupload' \
+          -c:v h264_vaapi \
+          -b:v ${FFMPEG_CODEC_BITRATE} \
+          -c:a:0 aac \
+          -b:a:0 180k \
+          -ac:a:0 2 \
+          -ar:a:0 48000 \
+          -metadata:s:a:0 language=${LANGUAGE} \
+          -c:a:1 copy \
+          -metadata:s:a:1 language=${LANGUAGE} \
+          "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
       else
-        VIDEO_OPTIONS="-vf \"scale=1920\:-1\" -c\:v h264 -b\:v ${FFMPEG_CODEC_BITRATE}"
+        ffmpeg \
+          -hide_banner \
+          -loglevel ${FFMPEG_LOG_LEVEL} \
+          -i "${WORKING_DIR}/normalized/${NAME}.mkv" \
+          -map_metadata -1 \
+          -map_chapters -1 \
+          -map 0:0 -map 0:1 -map 0:1 \
+          -vf 'scale=1920:-1' \
+          -c:v h264 \
+          -b:v ${FFMPEG_CODEC_BITRATE} \
+          -c:a:0 aac \
+          -b:a:0 180k \
+          -ac:a:0 2 \
+          -ar:a:0 48000 \
+          -metadata:s:a:0 language=${LANGUAGE} \
+          -c:a:1 copy \
+          -metadata:s:a:1 language=${LANGUAGE} \
+          "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
       fi
     else
-       VIDEO_OPTIONS="-c:v copy"
+      ffmpeg \
+        -hide_banner \
+        -loglevel ${FFMPEG_LOG_LEVEL} \
+        -i "${WORKING_DIR}/normalized/${NAME}.mkv" \
+        -map_metadata -1 \
+        -map_chapters -1 \
+        -map 0:0 -map 0:1 -map 0:1 \
+        -c:v copy \
+        -c:a:0 aac \
+        -b:a:0 180k \
+        -ac:a:0 2 \
+        -ar:a:0 48000 \
+        -metadata:s:a:0 language=${LANGUAGE} \
+        -c:a:1 copy \
+        -metadata:s:a:1 language=${LANGUAGE} \
+        "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
     fi
-
-    ffmpeg \
-      -hide_banner \
-      -loglevel ${FFMPEG_LOG_LEVEL} \
-      -i "${WORKING_DIR}/normalized/${NAME}.mkv" \
-      -map_metadata -1 \
-      -map_chapters -1 \
-      -map 0:0 -map 0:1 -map 0:1 \
-      ${VIDEO_OPTIONS} \
-      -c:a:0 aac \
-      -b:a:0 180k \
-      -ac:a:0 2 \
-      -ar:a:0 48000 \
-      -metadata:s:a:0 language=${LANGUAGE} \
-      -c:a:1 copy \
-      -metadata:s:a:1 language=${LANGUAGE} \
-      "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
 
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
       log "console"
