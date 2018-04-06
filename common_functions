@@ -16,6 +16,7 @@ fi
 
 # Cleanup
 cleanup () {
+  log "console" "Cleaning up."
   rm -rf ${WORKING_DIR}
 }
 
@@ -80,10 +81,12 @@ notify () {
   fi
 }
 
-# Define working directories
-log "console" "Creating working directory."
-export WORKING_DIR=$(mktemp -d -t transcoder.XXXX)
-mkdir ${WORKING_DIR}/reduced
-mkdir ${WORKING_DIR}/normalized
-mkdir ${WORKING_DIR}/transcoded
+# Create working directory
+working_directory () {
+  log "console" "Creating working directory."
+  export WORKING_DIR=$(mktemp -d -t transcoder.XXXX)
+  mkdir ${WORKING_DIR}/reduced
+  mkdir ${WORKING_DIR}/normalized
+  mkdir ${WORKING_DIR}/transcoded
+}
 

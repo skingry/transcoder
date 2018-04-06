@@ -309,6 +309,9 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
   # Process the queue
   for INPUT in $(sqlite3 ${DB} "SELECT file FROM inputs WHERE position='0' LIMIT 1;"); do
 
+    # Create the working directory
+    working_directory
+
     # Set the input file as a global variable, and generate the rest
     export INPUT="${INPUT}"
     global_variables
@@ -347,6 +350,7 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
       move
     fi
 
+    # Cleanup after ourselves
     cleanup
 
     if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then

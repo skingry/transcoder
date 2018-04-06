@@ -94,6 +94,4 @@ for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
     fi
     notify "queued" "${NAME}"
   fi
-
-  cleanup
 done
