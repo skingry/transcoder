@@ -1,0 +1,31 @@
+#!/bin/bash
+
+INPUT=$1
+
+# Define a temp directory
+TMPDIR="/tmp"
+
+# We're in the US, so we use NTSC
+export VIDEO_FORMAT=NTSC
+
+# Create working directory
+export WORKING_DIR=$(mktemp -d -t dvd-author.XXXX)
+
+# Generate global variables
+export FILE=$(basename "${INPUT}")
+export NAME=${FILE%.*}
+export UPPER_NAME=$(echo ${NAME// /_} | awk '{print toupper($0)}')
+
+# Transcode the file to MPEG2
+echo "-- Converting source file to MPEG2"
+ffmpeg -loglevel fatal -i "${INPUT}" -target ntsc-dvd -filter:v 'scale=720:-1,pad=720:480:(ow-iw)/2:(oh-ih)/2' -ac 2 "${WORKING_DIR}/${NAME}.mpg"
+
+# Create the DVD file structure
+dvdauthor -o "${WORKING_DIR}/${NAME}" -t "${WORKING_DIR}/${NAME}.mpg"
+dvdauthor -o "${WORKING_DIR}/${NAME}" -T
+
+# Create an ISO file
+genisoimage -dvd-video -V ${UPPER_NAME} -o "/data/shares/DVD ISO's/${NAME}.iso" "${WORKING_DIR}/${NAME}"
+
+# Clean up after ourselves
+rm -rf "${WORKING_DIR}"
