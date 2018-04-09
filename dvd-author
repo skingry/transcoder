@@ -25,7 +25,8 @@ dvdauthor -o "${WORKING_DIR}/${NAME}" -t "${WORKING_DIR}/${NAME}.mpg"
 dvdauthor -o "${WORKING_DIR}/${NAME}" -T
 
 # Create an ISO file
-genisoimage -dvd-video -V ${UPPER_NAME} -o "/data/shares/DVD ISO's/${NAME}.iso" "${WORKING_DIR}/${NAME}"
+genisoimage -dvd-video -V ${UPPER_NAME} -o "/data/shares/DVD/${NAME}.iso" "${WORKING_DIR}/${NAME}"
+chown nobody:nogroup "/data/shares/DVD/${NAME}.iso"
 
 # Clean up after ourselves
 rm -rf "${WORKING_DIR}"
