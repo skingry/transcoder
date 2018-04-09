@@ -18,7 +18,7 @@ export UPPER_NAME=$(echo ${NAME// /_} | awk '{print toupper($0)}')
 
 # Transcode the file to MPEG2
 echo "-- Converting source file to MPEG2"
-ffmpeg -loglevel fatal -i "${INPUT}" -target ntsc-dvd -filter:v 'scale=720:-1,pad=720:480:(ow-iw)/2:(oh-ih)/2' -ac 2 "${WORKING_DIR}/${NAME}.mpg"
+ffmpeg -loglevel fatal -i "${INPUT}" -target ntsc-dvd -aspect 16:9 -filter:v 'scale=720:-1,pad=720:480:(ow-iw)/2:(oh-ih)/2' -ac 2 "${WORKING_DIR}/${NAME}.mpg"
 
 # Create the DVD file structure
 dvdauthor -o "${WORKING_DIR}/${NAME}" -t "${WORKING_DIR}/${NAME}.mpg"
