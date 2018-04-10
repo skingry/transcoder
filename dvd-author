@@ -3,30 +3,31 @@
 INPUT=$1
 
 # Define a temp directory
-TMPDIR="/tmp"
+WORKING_DIR="/data/shares/DVD"
 
 # We're in the US, so we use NTSC
-export VIDEO_FORMAT=NTSC
-
-# Create working directory
-export WORKING_DIR=$(mktemp -d -t dvd-author.XXXX)
+VIDEO_FORMAT=NTSC
 
 # Generate global variables
-export FILE=$(basename "${INPUT}")
-export NAME=${FILE%.*}
-export UPPER_NAME=$(echo ${NAME// /_} | awk '{print toupper($0)}')
+FILE=$(basename "${INPUT}")
+NAME=${FILE%.*}
+UPPER_NAME=$(echo ${NAME// /_} | awk '{print toupper($0)}')
+
+# Enter working dir
+cd ${WORKING_DIR}
 
 # Transcode the file to MPEG2
 echo "-- Converting source file to MPEG2"
-ffmpeg -i "${INPUT}" -target ntsc-dvd -aspect 16:9 -filter:v 'scale=720:-1,pad=720:480:(ow-iw)/2:(oh-ih)/2' -ac 2 "${WORKING_DIR}/${NAME}.mpg"
+ffmpeg -i "${INPUT}" -target ntsc-dvd -aspect 16:9 -filter:v 'scale=720:-1,pad=720:480:(ow-iw)/2:(oh-ih)/2' -ac 2 "${NAME}.mpg"
 
 # Create the DVD file structure
-dvdauthor -o "${WORKING_DIR}/${NAME}" -t "${WORKING_DIR}/${NAME}.mpg"
-dvdauthor -o "${WORKING_DIR}/${NAME}" -T
+dvdauthor -o "${NAME}" -x "${NAME}.xml"
+dvdauthor -o "${NAME}" -T
 
 # Create an ISO file
-genisoimage -dvd-video -V ${UPPER_NAME} -o "/data/shares/DVD/${NAME}.iso" "${WORKING_DIR}/${NAME}"
-chown nobody:nogroup "/data/shares/DVD/${NAME}.iso"
+genisoimage -dvd-video -V ${UPPER_NAME} -o "${NAME}.iso" "${NAME}"
+chown nobody:nogroup "${NAME}.iso"
 
 # Clean up after ourselves
-rm -rf "${WORKING_DIR}"
+rm -rf "${NAME}.mpg"
+rm -rf "${NAME}"
