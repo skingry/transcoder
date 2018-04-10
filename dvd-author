@@ -6,7 +6,7 @@ INPUT=$1
 WORKING_DIR="/data/shares/DVD"
 
 # We're in the US, so we use NTSC
-VIDEO_FORMAT=NTSC
+export VIDEO_FORMAT=NTSC
 
 # Generate global variables
 FILE=$(basename "${INPUT}")
