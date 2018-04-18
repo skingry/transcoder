@@ -6,12 +6,18 @@ else
   exit 1
 fi
 
-# Db location
+# Define Db location
 export DB="${RUNNING_DIR}/transcoder.db"
 
 # Check for the existence of the database
 if [ ! -f ${DB} ]; then
   sqlite3 ${DB} "CREATE TABLE inputs(file text NOT NULL, video_track integer DEFAULT 0, audio_track integer DEFAULT 1, audio_language varchar(3) DEFAULT eng, position smallint DEFAULT 0, subtitle_track int DEFAULT 2, before_duration text DEFAULT NULL, after_duration text DEFAULT NULL);"
+fi
+
+# Make sure the Db is writable
+if [ ! -w ${DB} ]; then
+  echo "Db isn't writeable..."
+  exit 1
 fi
 
 # Cleanup

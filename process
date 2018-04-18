@@ -40,7 +40,7 @@ merge_subtitles () {
 move () {
   # Move the file if validation passes... if not, fail.
   if $(validate "${WORKING_DIR}/transcoded/${NAME}.mkv"); then
-    if [ -f "${WORKING_DIR}/transcoded/${NAME}.mkv" ]; then
+    if [ -f "${WORKING_DIR}/transcoded/${NAME}.mkv" ] && [ -w "${INPUT_DIR}" ]; then
       log "console" "Moving transcoded file."
       rm "${INPUT}"
       mv "${WORKING_DIR}/transcoded/${NAME}.mkv" "${INPUT}"
@@ -48,10 +48,6 @@ move () {
       # Add a status file
       touch "${INPUT_DIR}/.transcoded"
       echo "${NAME}" >> "${INPUT_DIR}/.transcoded"
-      chown nobody:nogroup "${INPUT_DIR}/.transcoded"
-
-      # Make sure the permissions are correct on everything else
-      chown -R nobody:nogroup "${INPUT_DIR}"
 
       # Update position of the file in the queue
       update_position "4"
