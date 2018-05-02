@@ -18,6 +18,9 @@ export RUNNING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Source common_functions
 source ${RUNNING_DIR}/common_functions
 
+# Create the working directory
+working_directory
+
 log "console" "Building list of files that need transcoding."
 
 # Build a list of the files that need transcoding
