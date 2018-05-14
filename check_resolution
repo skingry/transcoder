@@ -1,0 +1,42 @@
+#!/bin/bash
+
+MEDIA_DIR=$1
+
+if [ "${MEDIA_DIR}" == "" ]; then
+  echo "USAGE: $0 \"/path/to/media/to/inspect\""
+  exit 1
+fi
+
+if [ ! -d "${MEDIA_DIR}" ]; then
+  echo "Media directory not an actual directory!"
+  exit 1
+fi
+
+# Get the running directory
+export RUNNING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Source common_functions
+source ${RUNNING_DIR}/common_functions
+
+log "console" "Building list of files to inspect"
+
+# Build a list of the files to inspect
+find "${MEDIA_DIR}" -name "*.mkv" -o -name "*.m4v" -o -name "*.mp4" > inspect_list
+
+# Only split on newlines
+IFS=$'\n'
+
+# Cycle through the list inspect each file's height
+for INPUT in $(cat inspect_list); do
+  # Set the input file as a global variable, and generate the rest
+  export INPUT="${INPUT}"
+  global_variables
+  HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 "${INPUT}")
+	    
+  if [ ${HEIGHT} -lt ${MIN_RESOLUTION} ]; then
+    log "console" "Warning: ${INPUT}: height is only ${HEIGHT}"	
+  fi
+done
+
+# cleanup
+rm inspect_list

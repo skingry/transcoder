@@ -8,3 +8,6 @@ export SLACK_USERNAME="Transcoder"
 export FFMPEG_HARDWARE_ACCELERATION="false"
 export FFMPEG_LOG_LEVEL="fatal"
 export FFMPEG_CODEC_BITRATE="10777294"
+
+# Define check_resolution variables
+export MIN_RESOLUTION=1080
