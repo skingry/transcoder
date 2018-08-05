@@ -32,7 +32,7 @@ for INPUT in $(cat inspect_list); do
   export INPUT="${INPUT}"
   global_variables
   HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 "${INPUT}")
-	    
+
   if [ ${HEIGHT} -lt ${MIN_RESOLUTION} ]; then
     log "console" "Warning: ${INPUT}: height is only ${HEIGHT}"	
   fi
