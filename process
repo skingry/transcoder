@@ -283,8 +283,10 @@ validate () {
   fi
   sqlite3 ${DB} "UPDATE inputs SET after_duration=\"${AFTER_DURATION}\" WHERE file=\"${INPUT}\";"
 
-  # Allowable spread between before and after duration of transcoded file
-  DELTA="2"
+  # Allowable spread between before and after duration of transcoded file, allow override from the config file
+  if [ -z ${DELTA} ]; then
+    DELTA="2"
+  fi
 
   UPPER_BOUNDRY=$(expr ${BEFORE_DURATION} + ${DELTA})
   LOWER_BOUNDRY=$(expr ${BEFORE_DURATION} - ${DELTA})
