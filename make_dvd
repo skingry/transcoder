@@ -24,7 +24,7 @@ cd ${WORKING_DIR}
 
 # Transcode the file to MPEG2
 echo "-- Converting source file to MPEG2"
-ffmpeg -i "${INPUT}" -target ntsc-dvd -aspect 4:3 -filter:v 'scale=-1:480,pad=1440:480:(ow-iw)/2:(oh-ih)/2' -ac 2 "${NAME}.mpg"
+ffmpeg -i "${INPUT}" -target ntsc-dvd -aspect 4:3 -filter:v 'scale=-1:480,pad=1440:480:(ow-iw)/2:(oh-ih)/2' -ac 2 -metadata:s:a:0 language=eng "${NAME}.mpg"
 
 # Create the DVD file structure
 dvdauthor -o "${NAME}" -t -c "${CHAPTERS}" -f "${NAME}.mpg"
