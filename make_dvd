@@ -3,7 +3,7 @@
 INPUT=$1
 
 # Define a temp directory
-WORKING_DIR="/data/shares/DVD"
+WORKING_DIR="/data/shares/Media/DVD"
 
 # We're in the US, so we use NTSC
 export VIDEO_FORMAT=NTSC
