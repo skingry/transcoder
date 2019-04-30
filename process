@@ -7,7 +7,7 @@ export RUNNING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${RUNNING_DIR}/common_functions
 
 merge_subtitles () {
-  if $(validate "${WORKING_DIR}/transcoded/${NAME}.mkv") && [ -f "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" ]; then
+  if $(validate "${WORKING_DIR}/transcoded/${FILE}") && [ -f "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" ]; then
     # Merge subtitles
     log "console" "Merging subtitles."
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -17,7 +17,7 @@ merge_subtitles () {
     ffmpeg \
       -hide_banner \
       -loglevel ${FFMPEG_LOG_LEVEL} \
-      -i "${WORKING_DIR}/transcoded/${NAME}.mkv" \
+      -i "${WORKING_DIR}/transcoded/${FILE}" \
       -i "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" \
       -map 0:0 -map 0:1 -map 0:2 -map 1:0 \
       -c:v:0 copy \
@@ -31,7 +31,7 @@ merge_subtitles () {
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
       log "console"
     fi
-    mv "${WORKING_DIR}/transcoded/out.mkv" "${WORKING_DIR}/transcoded/${NAME}.mkv"
+    mv "${WORKING_DIR}/transcoded/out.mkv" "${WORKING_DIR}/transcoded/${FILE}"
   else
     log "console" "Merging subtitles failed."
   fi
@@ -39,15 +39,15 @@ merge_subtitles () {
 
 move () {
   # Move the file if validation passes... if not, fail.
-  if $(validate "${WORKING_DIR}/transcoded/${NAME}.mkv"); then
-    if [ -f "${WORKING_DIR}/transcoded/${NAME}.mkv" ] && [ -w "${INPUT_DIR}" ]; then
+  if $(validate "${WORKING_DIR}/transcoded/${FILE}"); then
+    if [ -f "${WORKING_DIR}/transcoded/${FILE}" ] && [ -w "${INPUT_DIR}" ]; then
       log "console" "Moving transcoded file."
       rm "${INPUT}"
-      mv "${WORKING_DIR}/transcoded/${NAME}.mkv" "${INPUT}"
+      mv "${WORKING_DIR}/transcoded/${FILE}" "${INPUT}"
 
       # Add a status file
       touch "${INPUT_DIR}/.transcoded"
-      echo "${NAME}" >> "${INPUT_DIR}/.transcoded"
+      md5sum "${INPUT_DIR}/${FILE}" >> "${INPUT_DIR}/.transcoded"
 
       # Update position of the file in the queue
       update_position "4"
@@ -59,35 +59,35 @@ move () {
     log "console" "Before duration: ${BEFORE_DURATION}"
     log "console" "After duration: ${AFTER_DURATION}"
 
-    if [ -f "${WORKING_DIR}/reduced/${NAME}.mkv" ]; then
+    if [ -f "${WORKING_DIR}/reduced/${FILE}" ]; then
       log "console" "FFProbe Output (reduced file):"
       log "console"
 
       ffprobe \
         -hide_banner \
-        -i "${WORKING_DIR}/reduced/${NAME}.mkv" 2>&1
+        -i "${WORKING_DIR}/reduced/${FILE}" 2>&1
 
       log "console"
     fi
 
-    if [ -f "${WORKING_DIR}/normalized/${NAME}.mkv" ]; then
+    if [ -f "${WORKING_DIR}/normalized/${FILE}" ]; then
       log "console" "FFProbe Output (normalized file):"
       log "console"
 
       ffprobe \
         -hide_banner \
-        -i "${WORKING_DIR}/normalized/${NAME}.mkv" 2>&1
+        -i "${WORKING_DIR}/normalized/${FILE}" 2>&1
 
       log "console"
     fi
 
-    if [ -f "${WORKING_DIR}/transcoded/${NAME}.mkv" ]; then
+    if [ -f "${WORKING_DIR}/transcoded/${FILE}" ]; then
       log "console" "FFProbe Output (transcoded file):"
       log "console"
 
       ffprobe \
         -hide_banner \
-        -i "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
+        -i "${WORKING_DIR}/transcoded/${FILE}" 2>&1
 
       log "console"
     fi
@@ -99,7 +99,7 @@ move () {
 }
 
 normalize () {
-  if $(validate "${WORKING_DIR}/reduced/${NAME}.mkv"); then
+  if $(validate "${WORKING_DIR}/reduced/${FILE}"); then
     # Normalize the audio
     log "console" "Normalizing audio."
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -110,8 +110,8 @@ normalize () {
       -c:a eac3 \
       -b:a 640k \
       -ar 48000 \
-      -v "${WORKING_DIR}/reduced/${NAME}.mkv" \
-      -o "${WORKING_DIR}/normalized/${NAME}.mkv"
+      -v "${WORKING_DIR}/reduced/${FILE}" \
+      -o "${WORKING_DIR}/normalized/${FILE}"
 
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
       log "console"
@@ -143,7 +143,7 @@ reduce () {
       -map 0:${VIDEO_TRACK} -map 0:${AUDIO_TRACK} \
       -c:v copy \
       -c:a copy \
-      "${WORKING_DIR}/reduced/${NAME}.mkv" 2>&1
+      "${WORKING_DIR}/reduced/${FILE}" 2>&1
 
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
       log "console"
@@ -185,7 +185,7 @@ rip_subtitles () {
 }
 
 transcode () {
-  if $(validate "${WORKING_DIR}/normalized/${NAME}.mkv"); then
+  if $(validate "${WORKING_DIR}/normalized/${FILE}"); then
     # Transcode the file
     log "console" "Transcoding."
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -199,7 +199,7 @@ transcode () {
         ffmpeg \
           -hide_banner \
           -loglevel ${FFMPEG_LOG_LEVEL} \
-          -i "${WORKING_DIR}/normalized/${NAME}.mkv" \
+          -i "${WORKING_DIR}/normalized/${FILE}" \
           -map_metadata -1 \
           -map_chapters -1 \
           -map 0:0 -map 0:1 -map 0:1 \
@@ -214,12 +214,12 @@ transcode () {
           -metadata:s:a:0 language=${LANGUAGE} \
           -c:a:1 copy \
           -metadata:s:a:1 language=${LANGUAGE} \
-          "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
+          "${WORKING_DIR}/transcoded/${FILE}" 2>&1
       else
         ffmpeg \
           -hide_banner \
           -loglevel ${FFMPEG_LOG_LEVEL} \
-          -i "${WORKING_DIR}/normalized/${NAME}.mkv" \
+          -i "${WORKING_DIR}/normalized/${FILE}" \
           -map_metadata -1 \
           -map_chapters -1 \
           -map 0:0 -map 0:1 -map 0:1 \
@@ -233,13 +233,13 @@ transcode () {
           -metadata:s:a:0 language=${LANGUAGE} \
           -c:a:1 copy \
           -metadata:s:a:1 language=${LANGUAGE} \
-          "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
+          "${WORKING_DIR}/transcoded/${FILE}" 2>&1
       fi
     else
       ffmpeg \
         -hide_banner \
         -loglevel ${FFMPEG_LOG_LEVEL} \
-        -i "${WORKING_DIR}/normalized/${NAME}.mkv" \
+        -i "${WORKING_DIR}/normalized/${FILE}" \
         -map_metadata -1 \
         -map_chapters -1 \
         -map 0:0 -map 0:1 -map 0:1 \
@@ -251,7 +251,7 @@ transcode () {
         -metadata:s:a:0 language=${LANGUAGE} \
         -c:a:1 copy \
         -metadata:s:a:1 language=${LANGUAGE} \
-        "${WORKING_DIR}/transcoded/${NAME}.mkv" 2>&1
+        "${WORKING_DIR}/transcoded/${FILE}" 2>&1
     fi
 
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -317,7 +317,9 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
     # Do all the things
     notify "start" "${NAME}"
 
-    log "console" "Beginning transcode for: '${NAME}'"
+    log "console" "Beginning transcode for: ${NAME}"
+    log "console" "Input directory: ${INPUT_DIR}"
+    log "console" "File name: ${FILE}"
 
     # Record duration of file before transcoding
     export BEFORE_DURATION=$(ffprobe -v error -select_streams v:0 -show_format "${INPUT}" | grep "duration" | awk -F'=' '{print $2}' | awk -F'.' '{print $1}')
@@ -348,13 +350,15 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
       move
     fi
 
-    # Cleanup after ourselves
-    cleanup
+    if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
+      cleanup
+    fi
 
     if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
-      log "console" "Ending transcode for: '${NAME}'"
+      log "console" "Ending transcode for: ${NAME}"
     else
-      log "console" "Transcoding failed for: '${NAME}'"
+      log "console" "Transcoding failed for: ${NAME}"
+      log "console" "Working directory: '${WORKING_DIR}'"
       notify "failed" "${NAME}"
     fi
   done
