@@ -10,4 +10,4 @@ Example:
 
 After queuing all the files you want to transcode, process the queue using the command `process`.
 
-Run the `check_resolution` command to list all media that are less than a certain resultion (e.g. 1080p)
+Run the `check_resolution` command to list all media that are less than a certain resultion width (e.g. 1080p)
