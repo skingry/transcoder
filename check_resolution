@@ -26,15 +26,15 @@ find "${MEDIA_DIR}" -name "*.mkv" -o -name "*.m4v" -o -name "*.mp4" > inspect_li
 # Only split on newlines
 IFS=$'\n'
 
-# Cycle through the list inspect each file's height
+# Cycle through the list inspect each file's width
 for INPUT in $(cat inspect_list); do
   # Set the input file as a global variable, and generate the rest
   export INPUT="${INPUT}"
   global_variables
-  HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 "${INPUT}")
+  WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=s=x:p=0 "${INPUT}")
 
-  if [ ${HEIGHT} -lt ${MIN_RESOLUTION} ]; then
-    log "console" "Warning: ${INPUT}: height is only ${HEIGHT}"	
+  if [ ${WIDTH} -lt ${MIN_RESOLUTION} ]; then
+    log "console" "Warning: ${INPUT}: width is only ${WIDTH}"	
   fi
 done
 
