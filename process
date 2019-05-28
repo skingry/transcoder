@@ -46,7 +46,9 @@ move () {
       mv "${WORKING_DIR}/transcoded/${FILE}" "${INPUT}"
 
       # Add a status file
-      touch "${INPUT_DIR}/.transcoded"
+      if [ ! -f "${INPUT_DIR}/.transcoded" ]; then
+        touch "${INPUT_DIR}/.transcoded"
+      fi
       md5sum "${INPUT_DIR}/${FILE}" >> "${INPUT_DIR}/.transcoded"
 
       # Update position of the file in the queue
