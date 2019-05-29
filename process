@@ -198,7 +198,7 @@ transcode () {
 
     if [ "${SOURCE_BITRATE}" -gt "${FFMPEG_CODEC_BITRATE}" ]; then
       if [ "${FFMPEG_HARDWARE_ACCELERATION}" == "true" ]; then
-        log "console" "  -- Using hardware acceleration"
+        log "console" "Using hardware acceleration"
         ffmpeg \
           -hide_banner \
           -loglevel ${FFMPEG_LOG_LEVEL} \
@@ -239,7 +239,7 @@ transcode () {
           "${WORKING_DIR}/transcoded/${FILE}" 2>&1
       fi
     else
-      log "console" "  -- Source bitrate lower than destination... copying video stream"
+      log "console" "Source bitrate lower than destination... copying video stream"
       ffmpeg \
         -hide_banner \
         -loglevel ${FFMPEG_LOG_LEVEL} \
