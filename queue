@@ -36,7 +36,7 @@ for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
   global_variables
 
   # Check to see if the input has already been queued
-  COUNT=$(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE file=\"${INPUT}\";")
+  COUNT=$(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE file=\"${INPUT}\" AND position='4';")
 
   if [ -f "${INPUT_DIR}/.transcoded" ]; then
     STATUS=$(cat "${INPUT_DIR}/.transcoded" | grep "${NAME}" | wc -l)
