@@ -25,8 +25,7 @@ cd ${WORKING_DIR}
 # Transcode the file to MPEG2
 echo "-- Converting source file to MPEG2"
 ffmpeg -i "${INPUT}" -c:v h264 -b:v 21554558 -vf 'scale=-1:480,pad=1440:ih:(ow-iw)/2' -ac 2 -metadata:s:a:0 language=eng "${NAME}-1.m4v"
-ffmpeg -i "${NAME}-1.m4v" -c:v h264 -b:v 21554558 -vf 'scale=iw/2:ih,setdar=dar=4/3' "${NAME}-2.m4v"
-ffmpeg -i "${NAME}-2.m4v" -target ntsc-dvd "${NAME}.mpg"
+ffmpeg -i "${NAME}-1.m4v" -target ntsc-dvd -vf 'scale=iw/2:ih,setdar=dar=4/3' "${NAME}.mpg"
 
 # Create the DVD file structure
 dvdauthor -o "${NAME}" -t -c "${CHAPTERS}" -a "2ch+en" -f "${NAME}.mpg"
@@ -37,4 +36,6 @@ genisoimage -dvd-video -V ${UPPER_NAME} -o "${NAME}.iso" "${NAME}"
 chown nobody:nogroup "${NAME}.iso"
 
 # Clean up after ourselves
-rm -rf "${NAME}*"
+rm -rf "${NAME}"
+rm -rf "${NAME}-1.m4v"
+rm -rf "${NAME}.mpg"
