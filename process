@@ -49,6 +49,7 @@ move () {
       if [ ! -f "${INPUT_DIR}/.transcoded" ]; then
         touch "${INPUT_DIR}/.transcoded"
       fi
+      log "console" "Recording md5sum of completed file."
       md5sum "${INPUT_DIR}/${FILE}" >> "${INPUT_DIR}/.transcoded"
 
       # Update position of the file in the queue
