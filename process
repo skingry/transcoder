@@ -52,6 +52,10 @@ move () {
       log "console" "Recording md5sum of completed file."
       md5sum "${INPUT_DIR}/${FILE}" >> "${INPUT_DIR}/.transcoded"
 
+      # Set permissions
+      log "console" "Setting permissions."
+      chown -R nobody:nogroup "${INPUT_DIR}"
+
       # Update position of the file in the queue
       update_position "4"
 
