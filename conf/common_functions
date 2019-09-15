@@ -1,13 +1,13 @@
 # Source unique variables
-if [ -f ${RUNNING_DIR}/transcoder.conf ]; then
-  source ${RUNNING_DIR}/transcoder.conf
+if [ -f /config/transcoder.conf ]; then
+  source /config//transcoder.conf
 else
   echo "No configuration file present."
   exit 1
 fi
 
 # Define Db location
-export DB="${RUNNING_DIR}/transcoder.db"
+export DB="/config/transcoder.db"
 
 # Check for the existence of the database
 if [ ! -f ${DB} ]; then

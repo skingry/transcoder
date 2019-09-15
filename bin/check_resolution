@@ -12,11 +12,8 @@ if [ ! -d "${MEDIA_DIR}" ]; then
   exit 1
 fi
 
-# Get the running directory
-export RUNNING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
 # Source common_functions
-source ${RUNNING_DIR}/common_functions
+source /config/common_functions
 
 log "console" "Building list of files to inspect"
 

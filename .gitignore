@@ -1,2 +1,2 @@
-/transcoder.conf
-/transcoder.db
+./conf/transcoder.conf
+./conf/transcoder.db

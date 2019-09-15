@@ -12,11 +12,8 @@ if [ ! -d "${MEDIA_DIR}" ]; then
   exit 1
 fi
 
-# Get the running directory
-export RUNNING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
 # Source common_functions
-source ${RUNNING_DIR}/common_functions
+source /config/common_functions
 
 # Create the working directory
 working_directory
@@ -39,7 +36,7 @@ for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
   COUNT=$(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE file=\"${INPUT}\" AND position='4';")
 
   if [ -f "${INPUT_DIR}/.transcoded" ]; then
-    STATUS=$(cat "${INPUT_DIR}/.transcoded" | grep "${NAME}" | wc -l)
+    STATUS=$(cat "${INPUT_DIR}/.transcoded")
   else
     STATUS="0"
   fi

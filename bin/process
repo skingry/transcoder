@@ -1,10 +1,7 @@
 #!/bin/bash
 
-# Get the running directory
-export RUNNING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
 # Source common functions
-source ${RUNNING_DIR}/common_functions
+source /config/common_functions
 
 merge_subtitles () {
   if $(validate "${WORKING_DIR}/transcoded/${FILE}") && [ -f "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" ]; then
@@ -49,8 +46,8 @@ move () {
       if [ ! -f "${INPUT_DIR}/.transcoded" ]; then
         touch "${INPUT_DIR}/.transcoded"
       fi
-      log "console" "Recording md5sum of completed file."
-      md5sum "${INPUT_DIR}/${FILE}" >> "${INPUT_DIR}/.transcoded"
+      log "console" "Recording mtime of completed file."
+      stat -c %Y "${INPUT_DIR}/${FILE}" >> "${INPUT_DIR}/.transcoded"
 
       # Set permissions
       log "console" "Setting permissions."
@@ -309,7 +306,7 @@ validate () {
 }
 
 # Run in a loop as long as there is work to do...
-while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt 0 ] && [ ! -f ${RUNNING_DIR}/transcoder.stop ]; do
+while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt 0 ] && [ ! -f /config/transcoder.stop ]; do
   # Only split on newlines
   IFS=$'\n'
 
