@@ -51,47 +51,57 @@ for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
       log "console"
     fi
 
-    echo -n "Enter the video track (Default: 0): "
-    read VIDEO_TRACK
+    echo -n "Process the file? (y/n Default: y): "
+    read PROCESS
 
-    if [ "${VIDEO_TRACK}" = "" ]; then
-      VIDEO_TRACK="0"
+    if [ "${PROCESS}" = "" ]; then
+      PROCESS="y"
     fi
 
-    echo -n "Enter the audio track (Default: 1): "
-    read AUDIO_TRACK
+    if [ "${PROCESS}" = "y" ]; then
+      echo -n "Enter the video track (Default: 0): "
+      read VIDEO_TRACK
 
-    if [ "${AUDIO_TRACK}" = "" ]; then
-      AUDIO_TRACK="1"
+      if [ "${VIDEO_TRACK}" = "" ]; then
+        VIDEO_TRACK="0"
+      fi
+
+      echo -n "Enter the audio track (Default: 1): "
+      read AUDIO_TRACK
+
+      if [ "${AUDIO_TRACK}" = "" ]; then
+        AUDIO_TRACK="1"
+      fi
+
+      echo -n "Enter the audio language (Default: eng): "
+      read LANGUAGE
+
+      if [ "${LANGUAGE}" = "" ]; then
+        LANGUAGE="eng"
+      fi
+
+      if [ "${LANGUAGE}" != "eng" ]; then
+        echo -n "Enter the subtitle track (Default: 2): "
+        read SUBTITLE_TRACK
+      fi
+
+      if [ "${SUBTITLE_TRACK}" = "" ]; then
+        SUBTITLE_TRACK="2"
+      fi
+
+      log "console"
+
+      # Add the file to the Db
+      sqlite3 ${DB} "INSERT INTO inputs (file, video_track, audio_track, subtitle_track, audio_language) VALUES (\"${INPUT}\", ${VIDEO_TRACK}, ${AUDIO_TRACK}, ${SUBTITLE_TRACK}, '${LANGUAGE}');"
+      log "console" "Adding ${NAME} with the following variables..."
+      log "console" "Video Track: ${VIDEO_TRACK}"
+      log "console" "Audio Track: ${AUDIO_TRACK}"
+      log "console" "Audio Language: ${LANGUAGE}"
+      if [ "${LANGUAGE}" != "eng" ]; then
+        log "console" "Subtitle Track: ${SUBTITLE_TRACK}"
+      fi
+      notify "queued" "${NAME}"
     fi
-
-    echo -n "Enter the audio language (Default: eng): "
-    read LANGUAGE
-
-    if [ "${LANGUAGE}" = "" ]; then
-      LANGUAGE="eng"
-    fi
-
-    if [ "${LANGUAGE}" != "eng" ]; then
-      echo -n "Enter the subtitle track (Default: 2): "
-      read SUBTITLE_TRACK
-    fi
-
-    if [ "${SUBTITLE_TRACK}" = "" ]; then
-      SUBTITLE_TRACK="2"
-    fi
-
-    log "console"
-
-    # Add the file to the Db
-    sqlite3 ${DB} "INSERT INTO inputs (file, video_track, audio_track, subtitle_track, audio_language) VALUES (\"${INPUT}\", ${VIDEO_TRACK}, ${AUDIO_TRACK}, ${SUBTITLE_TRACK}, '${LANGUAGE}');"
-    log "console" "Adding ${NAME} with the following variables..."
-    log "console" "Video Track: ${VIDEO_TRACK}"
-    log "console" "Audio Track: ${AUDIO_TRACK}"
-    log "console" "Audio Language: ${LANGUAGE}"
-    if [ "${LANGUAGE}" != "eng" ]; then
-      log "console" "Subtitle Track: ${SUBTITLE_TRACK}"
-    fi
-    notify "queued" "${NAME}"
+    log "console" "Skipping file."
   fi
 done
