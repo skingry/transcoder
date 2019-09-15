@@ -9,5 +9,8 @@ export FFMPEG_HARDWARE_ACCELERATION="false"
 export FFMPEG_LOG_LEVEL="fatal"
 export FFMPEG_CODEC_BITRATE="10777294"
 
+# Define DVD output directory
+export DVD_OUTPUT_DIRECTORY="/data/shares/Media/DVD"
+
 # Define check_resolution variables
 export MIN_RESOLUTION=1080

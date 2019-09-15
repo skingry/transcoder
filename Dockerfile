@@ -26,9 +26,10 @@ RUN apt-get install -y ffmpeg
 RUN pip3 install ffmpeg-normalize
 
 # Install scripts
-COPY bin/process /bin/process
-COPY bin/queue /bin/queue
-COPY bin/make_dvd /bin/make_dvd
-COPY bin/check_resolution /bin/check_resolution
+COPY src/check_resolution /bin/check_resolution
+COPY src/common_functions /common_functions
+COPY src/make_dvd /bin/make_dvd
+COPY src/process /bin/process
+COPY src/queue /bin/queue
 
 CMD [ "process" ]

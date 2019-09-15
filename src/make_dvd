@@ -1,0 +1,56 @@
+#!/bin/bash
+
+INPUT=$1
+
+if [ ! -f "${INPUT}" ]; then
+  echo "Input not a proper file."
+  exit 1
+fi
+
+# Source common_functions
+source /common_functions
+
+# Create the working directory
+working_directory
+
+# We're in the US, so we use NTSC
+export VIDEO_FORMAT=NTSC
+
+# Figure out how many chapters to make
+LENGTH=$(ffprobe -v error -select_streams v:0 -show_format "${INPUT}" | grep "duration" | awk -F'=' '{print $2}' | awk -F'.' '{print $1}')
+INTERVAL=$(echo "${LENGTH} / 300" | bc)
+LAST_CHAPTER=$(echo "${INTERVAL} * 300" | bc)
+CHAPTERS=$(seq -s, 0 300 ${LAST_CHAPTER})
+
+# Enter working dir
+cd ${WORKING_DIR}
+
+# Transcode the file
+log "console" "Converting source file to proper aspect ratio."
+ffmpeg -i "${INPUT}" \
+       -hide_banner \
+       -loglevel ${FFMPEG_LOG_LEVEL} \
+       -c:v h264 \
+       -b:v ${FFMPEG_CODEC_BITRATE} \
+       -vf 'scale=-1:480,pad=1440:ih:(ow-iw)/2' \
+       -ac 2 \
+       -metadata:s:a:0 language=eng \
+       "${NAME}-1.m4v"
+
+log "console" "Converting source file to MPEG2."
+ffmpeg -i "${NAME}-1.m4v" \
+       -hide_banner \
+       -loglevel ${FFMPEG_LOG_LEVEL} \
+       -target ntsc-dvd \
+       -vf 'scale=iw/2:ih,setdar=dar=4/3' \
+       "${NAME}.mpg"
+
+# Create the DVD file structure
+log "console" "Authoring DVD."
+dvdauthor -o "${NAME}" -t -c "${CHAPTERS}" -a "2ch+en" -f "${NAME}.mpg" >> /dev/null
+dvdauthor -o "${NAME}" -T >> /dev/null
+
+# Create an ISO file
+log console "Creating ISO image."
+genisoimage -dvd-video -V ${UPPER_NAME} -o "${DVD_OUTPUT_DIRECTORY}/${NAME}.iso" "${NAME}" >> /dev/null
+chown nobody:nogroup "${DVD_OUTPUT_DIRECTORY}/${NAME}.iso"

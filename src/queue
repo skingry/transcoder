@@ -13,7 +13,7 @@ if [ ! -d "${MEDIA_DIR}" ]; then
 fi
 
 # Source common_functions
-source /config/common_functions
+source /common_functions
 
 # Create the working directory
 working_directory

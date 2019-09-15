@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Source common functions
-source /config/common_functions
+source /common_functions
 
 merge_subtitles () {
   if $(validate "${WORKING_DIR}/transcoded/${FILE}") && [ -f "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" ]; then
