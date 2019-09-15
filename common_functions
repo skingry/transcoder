@@ -48,13 +48,13 @@ log () {
     if [ "${LOG_LINE}" == "" ]; then
       echo
     else
-      echo "$(date +%Y-%m-%d-%H:%M:%S) -- ${LOG_LINE}"
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- ${LOG_LINE}"
     fi
   elif [ "${LOCATION}" == "file" ]; then
     if [ "${LOG_LINE}" == "" ]; then
       echo >> ${RUNNING_DIR}/logs/${NAME}.log
     else
-      echo "$(date +%Y-%m-%d-%H:%M:%S) -- ${LOG_LINE}" >> ${RUNNING_DIR}/logs/${NAME}.log
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- ${LOG_LINE}" >> ${RUNNING_DIR}/logs/${NAME}.log
     fi
   fi
 }
