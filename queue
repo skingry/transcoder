@@ -100,7 +100,6 @@ for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
       if [ "${LANGUAGE}" != "eng" ]; then
         log "console" "Subtitle Track: ${SUBTITLE_TRACK}"
       fi
-      notify "queued" "${NAME}"
     else
       log "console" "Skipping file."
     fi

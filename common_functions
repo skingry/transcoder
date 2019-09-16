@@ -1,9 +1,23 @@
-# Source unique variables
+# Set defaults...
+if [ -z "${FFMPEG_HARDWARE_ACCELERATION}" ]; then
+  export FFMPEG_HARDWARE_ACCELERATION="false"
+fi
+
+if [ -z "${FFMPEG_LOG_LEVEL}" ]; then
+  export FFMPEG_LOG_LEVEL="fatal"
+fi
+
+if [ -z "${FFMPEG_CODEC_BITRATE=}" ]; then
+  export FFMPEG_CODEC_BITRATE="10777294"
+fi
+
+if [ -z "${DVD_OUTPUT_DIRECTORY}" ]; then
+  export DVD_OUTPUT_DIRECTORY="/data/shares/Media/DVD"
+fi
+
+# Source override variables
 if [ -f /config/transcoder.conf ]; then
   source /config/transcoder.conf
-else
-  echo "No configuration file present."
-  exit 1
 fi
 
 # Define Db location
@@ -56,35 +70,6 @@ log () {
     else
       echo "$(date '+%Y-%m-%d %H:%M:%S') -- ${LOG_LINE}" >> ${RUNNING_DIR}/logs/${NAME}.log
     fi
-  fi
-}
-
-# Notify Slack
-notify () {
-  ACTION=$1
-  ITEM=$2
-  EMOJI=":clapper:"
-
-  if [ "${SLACK_ENABLED}" == "true" ]; then
-    log "console" "Notifying Slack."
-
-    if [ "${ACTION}" == "start" ]; then
-      COLOR="good"
-      PRETEXT="Transcoding started for:"
-    elif [ "${ACTION}" == "complete" ]; then
-      COLOR="good"
-      PRETEXT="Transcoding complete for:"
-    elif [ "${ACTION}" == "failed" ]; then
-      COLOR="danger"
-      PRETEXT="Transcoding failed for:"
-    elif [ "${ACTION}" == "queued" ]; then
-      COLOR="warning"
-      PRETEXT="Queued the following for transcoding:"
-    fi
-
-    PAYLOAD="payload={\"channel\": \"${SLACK_CHANNEL}\", \"username\": \"${SLACK_USERNAME}\", \"icon_emoji\": \"${EMOJI}\", \"attachments\": [{\"color\": \"${COLOR}\", \"pretext\": \"${PRETEXT}\", \"fields\": [{\"title\": \"${ITEM}\"}]}]}"
-
-    curl -s -X POST --data-urlencode "${PAYLOAD}" "${SLACK_WEBHOOK_URL}" >> /dev/null
   fi
 }
 

@@ -55,8 +55,6 @@ move () {
 
       # Update position of the file in the queue
       update_position "4"
-
-      notify "complete" "${NAME}"
     fi
   else
     log "console" "Transcoding failed."
@@ -321,8 +319,6 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
     global_variables
 
     # Do all the things
-    notify "start" "${NAME}"
-
     log "console" "Beginning transcode for: ${NAME}"
     log "console" "Input directory: ${INPUT_DIR}"
     log "console" "File name: ${FILE}"
@@ -365,7 +361,6 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
     else
       log "console" "Transcoding failed for: ${NAME}"
       log "console" "Working directory: '${WORKING_DIR}'"
-      notify "failed" "${NAME}"
     fi
   done
 done
