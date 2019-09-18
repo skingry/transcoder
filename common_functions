@@ -15,13 +15,19 @@ if [ -z "${DVD_OUTPUT_DIRECTORY}" ]; then
   export DVD_OUTPUT_DIRECTORY="/data/shares/Media/DVD"
 fi
 
+if [ -z "{DB}" ]; then
+  export DB="/config/transcoder.db"
+fi
+
+# Create the config directory if it doesn't exist
+if [ ! -d "/config" ]; then
+  mkdir -p /config
+fi
+
 # Source override variables
 if [ -f /config/transcoder.conf ]; then
   source /config/transcoder.conf
 fi
-
-# Define Db location
-export DB="/config/transcoder.db"
 
 # Check for the existence of the database
 if [ ! -f ${DB} ]; then
