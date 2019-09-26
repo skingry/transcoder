@@ -15,7 +15,7 @@ if [ -z "${DVD_OUTPUT_DIRECTORY}" ]; then
   export DVD_OUTPUT_DIRECTORY="/data/shares/Media/DVD"
 fi
 
-if [ -z "{DB}" ]; then
+if [ -z "${DB}" ]; then
   export DB="/config/transcoder.db"
 fi
 
