@@ -21,7 +21,7 @@ working_directory
 log "console" "Building list of files that need transcoding."
 
 # Build a list of the files that need transcoding
-find "${MEDIA_DIR}" -name "*.mkv" -o -name "*.m4v" -o -name "*.mp4" > ${WORKING_DIR}/transcoding_list
+find "${MEDIA_DIR}" -name "*.mkv" -o -name "*.m4v" -o -name "*.mp4" -o -name "*.avi" > ${WORKING_DIR}/transcoding_list
 
 # Only split on newlines
 IFS=$'\n'

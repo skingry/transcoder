@@ -1,5 +1,7 @@
-FROM ubuntu:latest
+FROM ubuntu:18.04
 MAINTAINER Seth Kingry <sjkingry@gmail.com>
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 # Update package repos
 RUN apt-get -q update
