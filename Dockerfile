@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu
 MAINTAINER Seth Kingry <sjkingry@gmail.com>
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -14,12 +14,6 @@ RUN apt-get install -y software-properties-common \
                        jq \
                        sqlite3 \
                        python3-pip
-
-# Add the ffmpeg repository
-RUN apt-add-repository ppa:jonathonf/ffmpeg-4
-
-# Update the package repos again
-RUN apt-get -q update
 
 # Install ffmpeg
 RUN apt-get install -y ffmpeg

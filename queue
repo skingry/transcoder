@@ -36,7 +36,7 @@ for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
   COUNT=$(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE file=\"${INPUT}\" AND position='4';")
 
   if [ -f "${INPUT_DIR}/.transcoded" ]; then
-    STATUS=$(cat "${INPUT_DIR}/.transcoded")
+    STATUS=$(cat "${INPUT_DIR}/.transcoded" | tail -1)
   else
     STATUS="0"
   fi
