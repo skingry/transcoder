@@ -196,7 +196,7 @@ transcode () {
 
     SOURCE_BITRATE=$(ffprobe -v error -select_streams v:0 -show_format "${INPUT}" | grep "bit_rate" | awk -F'=' '{print $2}')
 
-    if [ "${SOURCE_BITRATE}" -gt "${FFMPEG_CODEC_BITRATE}" ]; then
+    if [ "${SOURCE_BITRATE}" -gt "${FFMPEG_CODEC_BITRATE}" ] || [ "${FORCE_BITRATE_CONVERSION}" = "true" ]; then
       if [ "${FFMPEG_HARDWARE_ACCELERATION}" == "true" ]; then
         log "console" "Using hardware acceleration"
         ffmpeg \
