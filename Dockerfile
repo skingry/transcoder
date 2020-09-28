@@ -13,7 +13,8 @@ RUN apt-get install -y software-properties-common \
                        growisofs \
                        jq \
                        sqlite3 \
-                       python3-pip
+                       python3-pip \
+                       bc
 
 # Install ffmpeg
 RUN apt-get install -y ffmpeg
