@@ -16,6 +16,8 @@ working_directory
 # We're in the US, so we use NTSC
 export VIDEO_FORMAT=NTSC
 
+global_variables
+
 # Figure out how many chapters to make
 LENGTH=$(ffprobe -v error -select_streams v:0 -show_format "${INPUT}" | grep "duration" | awk -F'=' '{print $2}' | awk -F'.' '{print $1}')
 INTERVAL=$(echo "${LENGTH} / 300" | bc)
