@@ -16,22 +16,22 @@ if [ -z "${DVD_OUTPUT_DIRECTORY}" ]; then
 fi
 
 if [ -z "${DB}" ]; then
-  export DB="/config/transcoder.db"
+  export DB="/config/transcoder/transcoder.db"
 fi
 
 # Create the config directory if it doesn't exist
-if [ ! -d "/config" ]; then
-  mkdir -p /config
+if [ ! -d "/config/transcoder" ]; then
+  mkdir -p /config/transcoder
 fi
 
 # Source override variables
 if [ -f /config/transcoder.conf ]; then
-  source /config/transcoder.conf
+  source /config/transcoder/transcoder.conf
 fi
 
 # Check for the existence of the database
 if [ ! -f ${DB} ]; then
-  sqlite3 ${DB} "CREATE TABLE inputs(file text NOT NULL, video_track integer DEFAULT 0, audio_track integer DEFAULT 1, audio_language varchar(3) DEFAULT eng, position smallint DEFAULT 0, subtitle_track int DEFAULT 2, before_duration text DEFAULT NULL, after_duration text DEFAULT NULL);"
+  sqlite3 ${DB} "CREATE TABLE inputs(file text NOT NULL, video_track integer DEFAULT 0, audio_track integer DEFAULT 1, audio_language varchar(3) DEFAULT eng, subtitles integer DEFAULT 0, subtitle_track int DEFAULT 2, subtitle_track_language varchar(3) DEFAULT eng, position smallint DEFAULT 0, before_duration text DEFAULT NULL, after_duration text DEFAULT NULL);"
 fi
 
 # Make sure the Db is writable
@@ -55,8 +55,10 @@ global_variables () {
   export DIR_NAME=$(basename "${INPUT_DIR}")
   export VIDEO_TRACK=$(sqlite3 ${DB} "SELECT video_track FROM inputs WHERE file=\"${INPUT}\";";)
   export AUDIO_TRACK=$(sqlite3 ${DB} "SELECT audio_track FROM inputs WHERE file=\"${INPUT}\";";)
-  export LANGUAGE=$(sqlite3 ${DB} "SELECT audio_language FROM inputs WHERE file=\"${INPUT}\";";)
+  export AUDIO_LANGUAGE=$(sqlite3 ${DB} "SELECT audio_language FROM inputs WHERE file=\"${INPUT}\";";)
+  export SUBTITLES=$(sqlite3 ${DB} "SELECT subtitles FROM inputs WHERE file=\"${INPUT}\";")
   export SUBTITLE_TRACK=$(sqlite3 ${DB} "SELECT subtitle_track FROM inputs WHERE file=\"${INPUT}\";")
+  export SUBTITLE_TRACK_LANGUAGE=$(sqlite3 ${DB} "SELECT subtitle_track_language FROM inputs WHERE file=\"${INPUT}\";")
 }
 
 # Output log line

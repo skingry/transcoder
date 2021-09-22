@@ -74,31 +74,51 @@ for INPUT in $(cat ${WORKING_DIR}/transcoding_list); do
       fi
 
       echo -n "Enter the audio language (Default: eng): "
-      read LANGUAGE
+      read AUDIO_LANGUAGE
 
-      if [ "${LANGUAGE}" = "" ]; then
-        LANGUAGE="eng"
+      if [ "${AUDIO_LANGUAGE}" = "" ]; then
+        AUDIO_LANGUAGE="eng"
       fi
 
-      if [ "${LANGUAGE}" != "eng" ]; then
+      echo -n "Add a subtitle track? (y/n Default: n): "
+      read SUBTITLE
+
+      if [ "${SUBTITLE}" = "" ]; then
+        SUBTITLE="n"
+      fi
+
+      if [ "${SUBTITLE}" = "y" ]; then
+        SUBTITLES="1"
         echo -n "Enter the subtitle track (Default: 2): "
         read SUBTITLE_TRACK
-      fi
 
-      if [ "${SUBTITLE_TRACK}" = "" ]; then
+        if [ "${SUBTITLE_TRACK}" = "" ]; then
+          SUBTITLE_TRACK="2"
+        fi
+
+        echo -n "Enter the subtitle track language (Default: eng): "
+        read SUBTITLE_TRACK_LANGUAGE
+
+        if [ "${SUBTITLE_TRACK_LANGUAGE}" = "" ]; then
+          SUBTITLE_TRACK_LANGUAGE="eng"
+        fi
+      else
+        SUBTITLES="0"
         SUBTITLE_TRACK="2"
+        SUBTITLE_TRACK_LANGUAGE="eng"
       fi
 
       log "console"
 
       # Add the file to the Db
-      sqlite3 ${DB} "INSERT INTO inputs (file, video_track, audio_track, subtitle_track, audio_language) VALUES (\"${INPUT}\", ${VIDEO_TRACK}, ${AUDIO_TRACK}, ${SUBTITLE_TRACK}, '${LANGUAGE}');"
+      sqlite3 ${DB} "INSERT INTO inputs (file, video_track, audio_track, audio_language, subtitles, subtitle_track, subtitle_track_language) VALUES (\"${INPUT}\", ${VIDEO_TRACK}, ${AUDIO_TRACK}, '${AUDIO_LANGUAGE}', ${SUBTITLES}, ${SUBTITLE_TRACK}, '${SUBTITLE_TRACK_LANGUAGE}');"
       log "console" "Adding ${NAME} with the following variables..."
       log "console" "Video Track: ${VIDEO_TRACK}"
       log "console" "Audio Track: ${AUDIO_TRACK}"
-      log "console" "Audio Language: ${LANGUAGE}"
-      if [ "${LANGUAGE}" != "eng" ]; then
+      log "console" "Audio Language: ${AUDIO_LANGUAGE}"
+      if [ "${SUBTITLE}" = "y" ]; then
         log "console" "Subtitle Track: ${SUBTITLE_TRACK}"
+        log "console" "Subtitle Track Language: ${SUBTITLE_TRACK_LANGUAGE}"
       fi
     else
       log "console" "Skipping file."

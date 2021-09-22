@@ -4,7 +4,7 @@
 source /common_functions
 
 merge_subtitles () {
-  if $(validate "${WORKING_DIR}/transcoded/${FILE}") && [ -f "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" ]; then
+  if [ -f "${WORKING_DIR}/transcoded/${NAME}.subtitles.mkv" ]; then
     # Merge subtitles
     log "console" "Merging subtitles."
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -15,14 +15,14 @@ merge_subtitles () {
       -hide_banner \
       -loglevel ${FFMPEG_LOG_LEVEL} \
       -i "${WORKING_DIR}/transcoded/${FILE}" \
-      -i "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" \
+      -i "${WORKING_DIR}/transcoded/${NAME}.subtitles.mkv" \
       -map 0:0 -map 0:1 -map 0:2 -map 1:0 \
       -c:v:0 copy \
       -c:a:0 copy \
       -c:a:1 copy \
       -c:s:0 copy \
       -disposition:s:0 default \
-      -metadata:s:s:0 language=eng \
+      -metadata:s:s:0 language=${SUBTITLE_TRACK_LANGUAGE} \
       "${WORKING_DIR}/transcoded/out.mkv" 2>&1
 
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -35,97 +35,47 @@ merge_subtitles () {
 }
 
 move () {
-  # Move the file if validation passes... if not, fail.
-  if $(validate "${WORKING_DIR}/transcoded/${FILE}"); then
-    if [ -f "${WORKING_DIR}/transcoded/${FILE}" ] && [ -w "${INPUT_DIR}" ]; then
-      log "console" "Moving transcoded file."
-      rm "${INPUT}"
-      mv "${WORKING_DIR}/transcoded/${FILE}" "${INPUT}"
+  if [ -f "${WORKING_DIR}/transcoded/${FILE}" ] && [ -w "${INPUT_DIR}" ]; then
+    log "console" "Moving transcoded file."
+    rm "${INPUT}"
+    mv "${WORKING_DIR}/transcoded/${FILE}" "${INPUT}"
 
-      # Add a status file
-      if [ ! -f "${INPUT_DIR}/.transcoded" ]; then
-        touch "${INPUT_DIR}/.transcoded"
-      fi
-      log "console" "Recording mtime of completed file."
-      stat -c %Y "${INPUT_DIR}/${FILE}" >> "${INPUT_DIR}/.transcoded"
-
-      # Set permissions
-      log "console" "Setting permissions."
-      chown -R nobody:nogroup "${INPUT_DIR}"
-
-      # Update position of the file in the queue
-      update_position "4"
+    # Add a status file
+    if [ ! -f "${INPUT_DIR}/.transcoded" ]; then
+      touch "${INPUT_DIR}/.transcoded"
     fi
-  else
-    log "console" "Transcoding failed."
-    log "console" "Before duration: ${BEFORE_DURATION}"
-    log "console" "After duration: ${AFTER_DURATION}"
+    log "console" "Recording mtime of completed file."
+    stat -c %Y "${INPUT_DIR}/${FILE}" >> "${INPUT_DIR}/.transcoded"
 
-    if [ -f "${WORKING_DIR}/reduced/${FILE}" ]; then
-      log "console" "FFProbe Output (reduced file):"
-      log "console"
+    # Set permissions
+    log "console" "Setting permissions."
+    chown -R nobody:nogroup "${INPUT_DIR}"
 
-      ffprobe \
-        -hide_banner \
-        -i "${WORKING_DIR}/reduced/${FILE}" 2>&1
-
-      log "console"
-    fi
-
-    if [ -f "${WORKING_DIR}/normalized/${FILE}" ]; then
-      log "console" "FFProbe Output (normalized file):"
-      log "console"
-
-      ffprobe \
-        -hide_banner \
-        -i "${WORKING_DIR}/normalized/${FILE}" 2>&1
-
-      log "console"
-    fi
-
-    if [ -f "${WORKING_DIR}/transcoded/${FILE}" ]; then
-      log "console" "FFProbe Output (transcoded file):"
-      log "console"
-
-      ffprobe \
-        -hide_banner \
-        -i "${WORKING_DIR}/transcoded/${FILE}" 2>&1
-
-      log "console"
-    fi
-
-    # Update position of file in the queue
-    update_position "99"
-    log "console" "Moving file failed."
+    # Update position of the file in the queue
+    update_position "4"
   fi
 }
 
 normalize () {
-  if $(validate "${WORKING_DIR}/reduced/${FILE}"); then
-    # Normalize the audio
-    log "console" "Normalizing audio."
-    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
-      log "console"
-    fi
-
-    ffmpeg-normalize \
-      -c:a eac3 \
-      -b:a 640k \
-      -ar 48000 \
-      -v "${WORKING_DIR}/reduced/${FILE}" \
-      -o "${WORKING_DIR}/normalized/${FILE}"
-
-    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
-      log "console"
-    fi
-
-    # Update the position of the file in the queue
-    update_position "2"
-  else
-    # Update position of file in the queue
-    update_position "99"
-    log "console" "Normalizing audio failed."
+  # Normalize the audio
+  log "console" "Normalizing audio."
+  if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+    log "console"
   fi
+
+  ffmpeg-normalize \
+    -c:a eac3 \
+    -b:a 640k \
+    -ar 48000 \
+    -v "${WORKING_DIR}/reduced/${FILE}" \
+    -o "${WORKING_DIR}/normalized/${FILE}"
+
+  if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+    log "console"
+  fi
+
+  # Update the position of the file in the queue
+  update_position "2"
 }
 
 reduce () {
@@ -162,7 +112,6 @@ reduce () {
 
 rip_subtitles () {
   if [ -f "${INPUT}" ]; then
-    # Rip the subtitles to a text SRT file
     log "console" "Ripping subtitles."
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
       log "console"
@@ -171,10 +120,12 @@ rip_subtitles () {
     ffmpeg \
       -hide_banner \
       -loglevel ${FFMPEG_LOG_LEVEL} \
-      -txt_format text \
       -i "${INPUT}" \
+      -map_metadata -1 \
+      -map_chapters -1 \
       -map 0:${SUBTITLE_TRACK} \
-      "${WORKING_DIR}/transcoded/${NAME}.en.forced.srt" 2>&1
+      -c:s copy \
+      "${WORKING_DIR}/transcoded/${NAME}.subtitles.mkv" 2>&1
 
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
       log "console"
@@ -187,120 +138,40 @@ rip_subtitles () {
 }
 
 transcode () {
-  if $(validate "${WORKING_DIR}/normalized/${FILE}"); then
-    # Transcode the file
-    log "console" "Transcoding."
-    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
-      log "console"
-    fi
-
-    SOURCE_BITRATE=$(ffprobe -v error -select_streams v:0 -show_format "${INPUT}" | grep "bit_rate" | awk -F'=' '{print $2}')
-
-    if [ "${SOURCE_BITRATE}" -gt "${FFMPEG_CODEC_BITRATE}" ] || [ "${FORCE_BITRATE_CONVERSION}" = "true" ]; then
-      if [ "${FFMPEG_HARDWARE_ACCELERATION}" == "true" ]; then
-        log "console" "Using hardware acceleration"
-        ffmpeg \
-          -hide_banner \
-          -loglevel ${FFMPEG_LOG_LEVEL} \
-          -i "${WORKING_DIR}/normalized/${FILE}" \
-          -map_metadata -1 \
-          -map_chapters -1 \
-          -map 0:0 -map 0:1 -map 0:1 \
-          -vaapi_device /dev/dri/renderD128 \
-          -vf 'scale=1920:-1,format=nv12,hwupload' \
-          -c:v h264_vaapi \
-          -b:v ${FFMPEG_CODEC_BITRATE} \
-          -c:a:0 aac \
-          -b:a:0 180k \
-          -ac:a:0 2 \
-          -ar:a:0 48000 \
-          -metadata:s:a:0 language=${LANGUAGE} \
-          -c:a:1 copy \
-          -metadata:s:a:1 language=${LANGUAGE} \
-          "${WORKING_DIR}/transcoded/${FILE}" 2>&1
-      else
-        ffmpeg \
-          -hide_banner \
-          -loglevel ${FFMPEG_LOG_LEVEL} \
-          -i "${WORKING_DIR}/normalized/${FILE}" \
-          -map_metadata -1 \
-          -map_chapters -1 \
-          -map 0:0 -map 0:1 -map 0:1 \
-          -vf 'scale=1920:-1' \
-          -c:v h264 \
-          -b:v ${FFMPEG_CODEC_BITRATE} \
-          -c:a:0 aac \
-          -b:a:0 180k \
-          -ac:a:0 2 \
-          -ar:a:0 48000 \
-          -metadata:s:a:0 language=${LANGUAGE} \
-          -c:a:1 copy \
-          -metadata:s:a:1 language=${LANGUAGE} \
-          "${WORKING_DIR}/transcoded/${FILE}" 2>&1
-      fi
-    else
-      log "console" "Source bitrate lower than destination... copying video stream"
-      ffmpeg \
-        -hide_banner \
-        -loglevel ${FFMPEG_LOG_LEVEL} \
-        -i "${WORKING_DIR}/normalized/${FILE}" \
-        -map_metadata -1 \
-        -map_chapters -1 \
-        -map 0:0 -map 0:1 -map 0:1 \
-        -c:v copy \
-        -c:a:0 aac \
-        -b:a:0 180k \
-        -ac:a:0 2 \
-        -ar:a:0 48000 \
-        -metadata:s:a:0 language=${LANGUAGE} \
-        -c:a:1 copy \
-        -metadata:s:a:1 language=${LANGUAGE} \
-        "${WORKING_DIR}/transcoded/${FILE}" 2>&1
-    fi
-
-    if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
-      log "console"
-    fi
-
-    # Update the position of the file in the queue
-    update_position "3"
-  else
-    # Update position of file in the queue
-    update_position "99"
-    log "console" "Transcoding failed."
+  # Transcode the file
+  log "console" "Transcoding."
+  if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+    log "console"
   fi
+
+  ffmpeg \
+    -hide_banner \
+    -loglevel ${FFMPEG_LOG_LEVEL} \
+    -i "${WORKING_DIR}/normalized/${FILE}" \
+    -map_metadata -1 \
+    -map_chapters -1 \
+    -map 0:0 -map 0:1 -map 0:1 \
+    -c:v copy \
+    -c:a:0 aac \
+    -b:a:0 180k \
+    -ac:a:0 2 \
+    -ar:a:0 48000 \
+    -metadata:s:a:0 language=${AUDIO_LANGUAGE} \
+    -c:a:1 copy \
+    -metadata:s:a:1 language=${AUDIO_LANGUAGE} \
+    "${WORKING_DIR}/transcoded/${FILE}" 2>&1
+
+  if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
+    log "console"
+  fi
+
+  # Update the position of the file in the queue
+  update_position "3"
 }
 
 update_position () {
   POSITION=$1
   sqlite3 ${DB} "UPDATE inputs SET position=\"${POSITION}\" WHERE file=\"${INPUT}\";"
-}
-
-validate () {
-  FILE=$1
-
-  # Record the duration of the processed file
-  if [ -f "${FILE}" ]; then
-    export AFTER_DURATION=$(ffprobe -v error -select_streams v:0 -show_format "${FILE}" | grep "duration" | awk -F'=' '{print $2}' | awk -F'.' '{print $1}')
-  else
-    export AFTER_DURATION="0"
-  fi
-  sqlite3 ${DB} "UPDATE inputs SET after_duration=\"${AFTER_DURATION}\" WHERE file=\"${INPUT}\";"
-
-  # Allowable spread between before and after duration of transcoded file, allow override from the config file
-  if [ -z ${DELTA} ]; then
-    DELTA="2"
-  fi
-
-  UPPER_BOUNDRY=$(expr ${BEFORE_DURATION} + ${DELTA})
-  LOWER_BOUNDRY=$(expr ${BEFORE_DURATION} - ${DELTA})
-
-  # Return true if validation passes, false if it does not
-  if [ ${AFTER_DURATION} -lt ${UPPER_BOUNDRY} ] && [ ${AFTER_DURATION} -gt ${LOWER_BOUNDRY} ]; then
-    true
-  else
-    false
-  fi
 }
 
 # Run in a loop as long as there is work to do...
@@ -338,8 +209,7 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
       transcode
     fi
 
-    # If the audio track language isn't English, then rip the subtitles to an SRT file
-    if [ "${LANGUAGE}" != "eng" ]; then
+    if [ "${SUBTITLES}" = "1" ]; then
       if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
         rip_subtitles
       fi
