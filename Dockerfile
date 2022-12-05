@@ -14,7 +14,9 @@ RUN apt-get install -y software-properties-common \
                        jq \
                        sqlite3 \
                        python3-pip \
-                       bc
+                       bc \
+                       vim \
+                       curl
 
 # Install ffmpeg
 RUN apt-get install -y ffmpeg

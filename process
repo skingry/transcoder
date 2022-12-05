@@ -4,7 +4,7 @@
 source /common_functions
 
 merge_subtitles () {
-  if [ -f "${WORKING_DIR}/transcoded/${NAME}.subtitles.mkv" ]; then
+  if [ -f "${WORKING_DIR}/normalized/${NAME}.subtitles.mkv" ]; then
     # Merge subtitles
     log "console" "Merging subtitles."
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -14,8 +14,8 @@ merge_subtitles () {
     ffmpeg \
       -hide_banner \
       -loglevel ${FFMPEG_LOG_LEVEL} \
-      -i "${WORKING_DIR}/transcoded/${FILE}" \
-      -i "${WORKING_DIR}/transcoded/${NAME}.subtitles.mkv" \
+      -i "${WORKING_DIR}/normalized/${FILE}" \
+      -i "${WORKING_DIR}/normalized/${NAME}.subtitles.mkv" \
       -map 0:0 -map 0:1 -map 0:2 -map 1:0 \
       -c:v:0 copy \
       -c:a:0 copy \
@@ -23,22 +23,22 @@ merge_subtitles () {
       -c:s:0 copy \
       -disposition:s:0 default \
       -metadata:s:s:0 language=${SUBTITLE_TRACK_LANGUAGE} \
-      "${WORKING_DIR}/transcoded/out.mkv" 2>&1
+      "${WORKING_DIR}/normalized/out.mkv" 2>&1
 
     if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
       log "console"
     fi
-    mv "${WORKING_DIR}/transcoded/out.mkv" "${WORKING_DIR}/transcoded/${FILE}"
+    mv "${WORKING_DIR}/normalized/out.mkv" "${WORKING_DIR}/normalized/${FILE}"
   else
     log "console" "Merging subtitles failed."
   fi
 }
 
 move () {
-  if [ -f "${WORKING_DIR}/transcoded/${FILE}" ] && [ -w "${INPUT_DIR}" ]; then
-    log "console" "Moving transcoded file."
+  if [ -f "${WORKING_DIR}/normalized/${FILE}" ] && [ -w "${INPUT_DIR}" ]; then
+    log "console" "Moving normalized file."
     rm "${INPUT}"
-    mv "${WORKING_DIR}/transcoded/${FILE}" "${INPUT}"
+    mv "${WORKING_DIR}/normalized/${FILE}" "${INPUT}"
 
     # Add a status file
     if [ ! -f "${INPUT_DIR}/.transcoded" ]; then
@@ -64,10 +64,10 @@ normalize () {
   fi
 
   ffmpeg-normalize \
-    -c:a eac3 \
+    -c:a ac3 \
     -b:a 640k \
     -ar 48000 \
-    -v "${WORKING_DIR}/reduced/${FILE}" \
+    -v "${WORKING_DIR}/transcoded/${FILE}" \
     -o "${WORKING_DIR}/normalized/${FILE}"
 
   if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -75,7 +75,32 @@ normalize () {
   fi
 
   # Update the position of the file in the queue
-  update_position "2"
+  update_position "3"
+}
+
+# Notify Slack
+slack () {
+  ACTION=$1
+  EMOJI=":clapper:"
+
+  if [ "${SLACK_ENABLED}" = "true" ]; then
+    log "console" "Notifying Slack."
+    if [ "${ACTION}" == "start" ]; then
+      COLOR="good"
+      PRETEXT="Transcoding started for:"
+    elif [ "${ACTION}" == "complete" ]; then
+      COLOR="good"
+      PRETEXT="Transcoding complete for:"
+    elif [ "${ACTION}" == "failed" ]; then
+      COLOR="danger"
+      PRETEXT="Transcoding failed for:"
+    elif [ "${ACTION}" == "queued" ]; then
+      COLOR="warning"
+      PRETEXT="Queued the following for transcoding:"
+    fi
+    PAYLOAD="payload={\"channel\": \"${SLACK_CHANNEL}\", \"username\": \"${SLACK_USERNAME}\", \"icon_emoji\": \"${EMOJI}\", \"attachments\": [{\"color\": \"${COLOR}\", \"pretext\": \"${PRETEXT}\", \"fields\": [{\"title\": \"${NAME}\"}]}]}"
+    curl -s -X POST --data-urlencode "${PAYLOAD}" "${SLACK_WEBHOOK_URL}" >> /dev/null
+  fi
 }
 
 reduce () {
@@ -147,18 +172,16 @@ transcode () {
   ffmpeg \
     -hide_banner \
     -loglevel ${FFMPEG_LOG_LEVEL} \
-    -i "${WORKING_DIR}/normalized/${FILE}" \
+    -i "${WORKING_DIR}/reduced/${FILE}" \
     -map_metadata -1 \
     -map_chapters -1 \
-    -map 0:0 -map 0:1 -map 0:1 \
-    -c:v copy \
-    -c:a:0 aac \
-    -b:a:0 180k \
-    -ac:a:0 2 \
-    -ar:a:0 48000 \
+    -map 0:0 -map 0:1 \
+    -c:v libx265 \
+    -crf 15 \
+    -preset fast \
+    -c:a:0 ac3 \
+    -b:a:0 640k \
     -metadata:s:a:0 language=${AUDIO_LANGUAGE} \
-    -c:a:1 copy \
-    -metadata:s:a:1 language=${AUDIO_LANGUAGE} \
     "${WORKING_DIR}/transcoded/${FILE}" 2>&1
 
   if [ "${FFMPEG_LOG_LEVEL}" = "info" ]; then
@@ -166,7 +189,7 @@ transcode () {
   fi
 
   # Update the position of the file in the queue
-  update_position "3"
+  update_position "2"
 }
 
 update_position () {
@@ -189,6 +212,9 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
     export INPUT="${INPUT}"
     global_variables
 
+    # Notify Slack
+    slack "start"
+
     # Do all the things
     log "console" "Beginning transcode for: ${NAME}"
     log "console" "Input directory: ${INPUT_DIR}"
@@ -202,11 +228,11 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
     reduce
 
     if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
-      normalize
+      transcode
     fi
 
     if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
-      transcode
+      normalize
     fi
 
     if [ "${SUBTITLES}" = "1" ]; then
@@ -227,10 +253,12 @@ while [ $(sqlite3 ${DB} "SELECT COUNT(*) FROM inputs WHERE position = '0';") -gt
     fi
 
     if [ $(sqlite3 ${DB} "SELECT position FROM inputs WHERE file = \"${INPUT}\";") != 99 ]; then
+      slack "complete" "${NAME}"
       log "console" "Ending transcode for: ${NAME}"
     else
       log "console" "Transcoding failed for: ${NAME}"
       log "console" "Working directory: '${WORKING_DIR}'"
+      slack "failed"
     fi
   done
 done
